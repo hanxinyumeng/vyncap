@@ -10,30 +10,25 @@ export interface Rect {
   height: number;
 }
 
-export type AnnotationTool =
-  | "rectangle"
-  | "arrow"
-  | "text"
-  | "mosaic"
-  | "highlight";
+export type AnnotationTool = 'rectangle' | 'arrow' | 'text' | 'mosaic' | 'highlight';
 
 export interface Annotation {
   id: string;
   tool: AnnotationTool;
-  color: string;
-  lineWidth: number;
   points: Point[];
+  color: string;
+  size: number;
   text?: string;
   rect?: Rect;
 }
 
 export interface ScreenshotState {
-  isCapturing: boolean;
-  screenshotData: string | null;
+  image: string | null;
+  selection: Rect | null;
   annotations: Annotation[];
-  selectedTool: AnnotationTool;
-  selectedColor: string;
-  lineWidth: number;
+  currentTool: AnnotationTool;
+  currentColor: string;
+  currentSize: number;
   history: Annotation[][];
   historyIndex: number;
 }
