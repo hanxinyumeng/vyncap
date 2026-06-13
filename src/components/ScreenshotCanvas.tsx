@@ -35,6 +35,21 @@ export function ScreenshotCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
+  const [cursorStyle, setCursorStyle] = useState('crosshair');
+
+  const getEdgeCursor = useCallback((x: number, y: number, sel: Rect): string => {
+    const edge = 6;
+    const onLeft = Math.abs(x - sel.x) < edge;
+    const onRight = Math.abs(x - (sel.x + sel.width)) < edge;
+    const onTop = Math.abs(y - sel.y) < edge;
+    const onBottom = Math.abs(y - (sel.y + sel.height)) < edge;
+
+    if ((onLeft && onTop) || (onRight && onBottom)) return 'nwse-resize';
+    if ((onRight && onTop) || (onLeft && onBottom)) return 'nesw-resize';
+    if (onLeft || onRight) return 'ew-resize';
+    if (onTop || onBottom) return 'ns-resize';
+    return 'crosshair';
+  }, []);
 
   // Draw image and annotations
   useEffect(() => {
@@ -212,10 +227,12 @@ export function ScreenshotCanvas({
       };
       onSelectionChange(newSelection);
     } else if (selection) {
+      // Update cursor based on position relative to selection
+      setCursorStyle(getEdgeCursor(x, y, selection));
       // Update annotation
       onUpdateAnnotation({ x, y });
     }
-  }, [isDrawing, startPoint, selection, onSelectionChange, onUpdateAnnotation]);
+  }, [isDrawing, startPoint, selection, onSelectionChange, onUpdateAnnotation, getEdgeCursor]);
 
   const handleMouseUp = useCallback(() => {
     if (isDrawing) {
@@ -247,7 +264,7 @@ export function ScreenshotCanvas({
     <canvas
       ref={canvasRef}
       className="block w-full h-full object-contain"
-      style={{ cursor: selection ? 'crosshair' : 'crosshair' }}
+      style={{ cursor: cursorStyle }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

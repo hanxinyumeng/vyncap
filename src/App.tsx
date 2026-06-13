@@ -124,31 +124,45 @@ export default function App() {
         onAddTextAnnotation={addTextAnnotation}
       />
 
-      {selectionComplete && state.selection && (
-        <div className="absolute bottom-4 right-4 z-50 flex flex-col gap-2 items-end">
-          <ActionButtons
-            onCopy={handleCopy}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-          <Toolbar
-            currentTool={state.currentTool}
-            onToolChange={setCurrentTool}
-            onUndo={undo}
-            onRedo={redo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-          />
-          <ColorPicker
-            currentColor={state.currentColor}
-            onColorChange={setCurrentColor}
-          />
-          <SizeSelector
-            currentSize={state.currentSize}
-            onSizeChange={setCurrentSize}
-          />
-        </div>
-      )}
+      {selectionComplete && state.selection && (() => {
+        const sel = state.selection;
+        const toolbarGap = 8;
+        // Position below selection by default, flip above if near bottom
+        const belowY = sel.y + sel.height + toolbarGap;
+        const aboveY = sel.y - toolbarGap;
+        const useBelow = belowY + 200 < window.innerHeight;
+        const top = useBelow ? belowY : aboveY;
+        // Align to right edge of selection, clamp to screen
+        const left = Math.min(sel.x + sel.width, window.innerWidth - 300);
+        return (
+          <div
+            className="absolute z-50 flex flex-col gap-2 items-end"
+            style={{ top, left, position: 'absolute' }}
+          >
+            <ActionButtons
+              onCopy={handleCopy}
+              onSave={handleSave}
+              onCancel={handleCancel}
+            />
+            <Toolbar
+              currentTool={state.currentTool}
+              onToolChange={setCurrentTool}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+            />
+            <ColorPicker
+              currentColor={state.currentColor}
+              onColorChange={setCurrentColor}
+            />
+            <SizeSelector
+              currentSize={state.currentSize}
+              onSizeChange={setCurrentSize}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
