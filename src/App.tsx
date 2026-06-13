@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useScreenshot } from './hooks/useScreenshot';
 import { useAnnotation } from './hooks/useAnnotation';
+import { useAI } from './hooks/useAI';
 import { ScreenshotCanvas } from './components/ScreenshotCanvas';
 import { Toolbar } from './components/Toolbar';
 import { ColorPicker } from './components/ColorPicker';
 import { SizeSelector } from './components/SizeSelector';
 import { ActionButtons } from './components/ActionButtons';
+import { SettingsPanel } from './components/SettingsPanel';
 
 interface PinnedImage {
   id: number;
@@ -19,50 +21,35 @@ interface PinnedImage {
 export default function App() {
   const [selectionComplete, setSelectionComplete] = useState(false);
   const [pinnedImages, setPinnedImages] = useState<PinnedImage[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
   const dragRef = useRef<{ id: number; offsetX: number; offsetY: number } | null>(null);
 
   const {
-    state,
-    captureScreen,
-    setSelection,
-    setCurrentTool,
-    setCurrentColor,
-    setCurrentSize,
-    copyToClipboard,
-    reset,
+    state, captureScreen, setSelection, setCurrentTool,
+    setCurrentColor, setCurrentSize, copyToClipboard, reset,
   } = useScreenshot();
 
   const {
-    annotations,
-    currentAnnotation,
-    startAnnotation,
-    updateAnnotation,
-    finishAnnotation,
-    addTextAnnotation,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
+    annotations, currentAnnotation, startAnnotation, updateAnnotation,
+    finishAnnotation, addTextAnnotation, undo, redo, canUndo, canRedo,
   } = useAnnotation();
+
+  const { config, setConfig, askAI, answer, loading: aiLoading, error: aiError, clearAnswer } = useAI();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        captureScreen();
-      }
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') { e.preventDefault(); captureScreen(); }
       if (e.key === 'Escape') {
-        if (state.image) {
-          setSelectionComplete(false);
-          reset();
-        }
+        if (showSettings) { setShowSettings(false); return; }
+        if (answer || aiError) { clearAnswer(); return; }
+        if (state.image) { setSelectionComplete(false); reset(); }
       }
       if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
       if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [captureScreen, setSelection, undo, redo, reset, state.image]);
+  }, [captureScreen, setSelection, undo, redo, reset, state.image, showSettings, answer, aiError, clearAnswer]);
 
   const getCroppedImage = (): string | null => {
     const canvas = document.querySelector('canvas');
@@ -90,6 +77,7 @@ export default function App() {
 
   const handleCancel = async () => {
     setSelectionComplete(false);
+    clearAnswer();
     await reset();
   };
 
@@ -100,9 +88,7 @@ export default function App() {
       const resp = await fetch(src);
       const blob = await resp.blob();
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    } catch {
-      await copyToClipboard();
-    }
+    } catch { await copyToClipboard(); }
     setSelectionComplete(false);
     await reset();
   };
@@ -111,89 +97,75 @@ export default function App() {
     const src = getCroppedImage();
     if (!src || !state.selection) return;
     const sel = state.selection;
-    setPinnedImages(prev => [...prev, {
-      id: Date.now(),
-      src,
-      x: sel.x,
-      y: sel.y,
-      width: sel.width,
-      height: sel.height,
-    }]);
+    setPinnedImages(prev => [...prev, { id: Date.now(), src, x: sel.x, y: sel.y, width: sel.width, height: sel.height }]);
     setSelectionComplete(false);
     reset();
+  };
+
+  const handleAI = async () => {
+    const src = getCroppedImage();
+    if (!src) return;
+    await askAI(src);
   };
 
   const handlePinDragStart = (id: number, e: React.MouseEvent) => {
     const pin = pinnedImages.find(p => p.id === id);
     if (!pin) return;
     dragRef.current = { id, offsetX: e.clientX - pin.x, offsetY: e.clientY - pin.y };
-
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
-      const { id: dragId, offsetX, offsetY } = dragRef.current;
-      setPinnedImages(prev => prev.map(p =>
-        p.id === dragId ? { ...p, x: ev.clientX - offsetX, y: ev.clientY - offsetY } : p
-      ));
+      const { id: did, ox, oy } = { id: dragRef.current.id, ox: dragRef.current.offsetX, oy: dragRef.current.offsetY };
+      setPinnedImages(prev => prev.map(p => p.id === did ? { ...p, x: ev.clientX - ox, y: ev.clientY - oy } : p));
     };
-    const onUp = () => {
-      dragRef.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
+    const onUp = () => { dragRef.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
 
-  const closePin = (id: number) => {
-    setPinnedImages(prev => prev.filter(p => p.id !== id));
-  };
+  const closePin = (id: number) => setPinnedImages(prev => prev.filter(p => p.id !== id));
+  const handleSelectionComplete = () => setSelectionComplete(true);
 
-  const handleSelectionComplete = () => {
-    setSelectionComplete(true);
-  };
-
+  // Home screen
   if (!state.image) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Screenshot Tool</h1>
-          <p className="text-gray-600 mb-4">Press Ctrl+Alt+A to take a screenshot</p>
-          <button onClick={captureScreen} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-            Take Screenshot
-          </button>
+          <h1 className="text-2xl font-bold mb-2">AI 答题助手</h1>
+          <p className="text-gray-500 mb-6">截图 → 选区 → AI 解答</p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={captureScreen} className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
+              开始截图
+            </button>
+            <button onClick={() => setShowSettings(true)} className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
+              AI 设置
+            </button>
+          </div>
+          {!config.apiKey && (
+            <p className="text-orange-500 text-sm mt-4">⚠ 请先点击「AI 设置」配置 API Key</p>
+          )}
         </div>
+        {showSettings && <SettingsPanel config={config} onChange={setConfig} onClose={() => setShowSettings(false)} />}
         {pinnedImages.map(pin => (
           <div key={pin.id} className="fixed shadow-2xl border border-gray-300 rounded overflow-hidden z-50"
-            style={{ left: pin.x, top: pin.y, width: pin.width, height: pin.height }}
-            onMouseDown={e => handlePinDragStart(pin.id, e)}
-          >
-            <button onClick={() => closePin(pin.id)}
-              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 hover:opacity-100 focus:opacity-100 z-10"
-              style={{ opacity: undefined }}
-            >×</button>
-            <img src={pin.src} className="w-full h-full object-contain pointer-events-none" draggable={false} />
+            style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
+            <button onClick={() => closePin(pin.id)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-700 z-10">×</button>
+            <img src={pin.src} className="pointer-events-none" draggable={false} style={{ width: pin.width, height: pin.height }} />
           </div>
         ))}
       </div>
     );
   }
 
+  // Screenshot mode
   return (
     <div className="fixed inset-0 overflow-hidden bg-transparent">
       <ScreenshotCanvas
-        image={state.image}
-        selection={state.selection}
-        annotations={annotations}
-        currentAnnotation={currentAnnotation}
-        currentTool={state.currentTool}
-        currentColor={state.currentColor}
-        currentSize={state.currentSize}
-        onSelectionChange={setSelection}
-        onSelectionComplete={handleSelectionComplete}
-        onStartAnnotation={startAnnotation}
-        onUpdateAnnotation={updateAnnotation}
-        onFinishAnnotation={finishAnnotation}
-        onAddTextAnnotation={addTextAnnotation}
+        image={state.image} selection={state.selection} annotations={annotations}
+        currentAnnotation={currentAnnotation} currentTool={state.currentTool}
+        currentColor={state.currentColor} currentSize={state.currentSize}
+        onSelectionChange={setSelection} onSelectionComplete={handleSelectionComplete}
+        onStartAnnotation={startAnnotation} onUpdateAnnotation={updateAnnotation}
+        onFinishAnnotation={finishAnnotation} onAddTextAnnotation={addTextAnnotation}
       />
 
       {selectionComplete && state.selection && (() => {
@@ -205,7 +177,7 @@ export default function App() {
         const left = Math.max(0, Math.min(sel.x + sel.width - 260, window.innerWidth - 260));
         return (
           <div className="absolute z-50 flex flex-col gap-1.5 items-end" style={{ top, left }}>
-            <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} />
+            <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} onAI={handleAI} aiLoading={aiLoading} />
             <Toolbar currentTool={state.currentTool} onToolChange={setCurrentTool} onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo} />
             <ColorPicker currentColor={state.currentColor} onColorChange={setCurrentColor} />
             <SizeSelector currentSize={state.currentSize} onSizeChange={setCurrentSize} />
@@ -213,17 +185,44 @@ export default function App() {
         );
       })()}
 
+      {/* AI Answer panel */}
+      {(answer || aiError || aiLoading) && selectionComplete && state.selection && (() => {
+        const sel = state.selection;
+        const top = sel.y + sel.height + 8;
+        const left = sel.x;
+        const width = Math.min(sel.width, window.innerWidth - sel.x - 16);
+        return (
+          <div className="absolute z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl border overflow-hidden"
+            style={{ top, left, width: Math.max(width, 300), maxHeight: 400 }}>
+            <div className="flex items-center justify-between px-4 py-2 bg-purple-50 border-b">
+              <span className="text-sm font-semibold text-purple-700">AI 解答</span>
+              <button onClick={clearAnswer} className="text-gray-400 hover:text-gray-600">×</button>
+            </div>
+            <div className="px-4 py-3 overflow-y-auto max-h-[340px]">
+              {aiLoading && (
+                <div className="flex items-center gap-2 text-purple-600">
+                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="8" />
+                  </svg>
+                  <span className="text-sm">正在分析截图...</span>
+                </div>
+              )}
+              {aiError && <div className="text-red-500 text-sm">{aiError}</div>}
+              {answer && <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{answer}</div>}
+            </div>
+          </div>
+        );
+      })()}
+
       {pinnedImages.map(pin => (
         <div key={pin.id} className="fixed shadow-2xl border border-gray-300 rounded overflow-hidden z-[100]"
-          style={{ left: pin.x, top: pin.y, width: pin.width, height: pin.height }}
-          onMouseDown={e => handlePinDragStart(pin.id, e)}
-        >
-          <button onClick={() => closePin(pin.id)}
-            className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center-center hover:bg-red-700 z-10"
-          >×</button>
-          <img src={pin.src} className="w-full h-full object-contain pointer-events-none" draggable={false} />
+          style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
+          <button onClick={() => closePin(pin.id)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-700 z-10">×</button>
+          <img src={pin.src} className="pointer-events-none" draggable={false} style={{ width: pin.width, height: pin.height }} />
         </div>
       ))}
+
+      {showSettings && <SettingsPanel config={config} onChange={setConfig} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

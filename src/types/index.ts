@@ -32,3 +32,10 @@ export interface ScreenshotState {
   history: Annotation[][];
   historyIndex: number;
 }
+
+export interface AIConfig {
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+  prompt: string;
+}
