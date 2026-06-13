@@ -97,7 +97,7 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black">
+    <div className="fixed inset-0 overflow-hidden bg-transparent">
       <ScreenshotCanvas
         image={state.image}
         selection={state.selection}

@@ -49,12 +49,14 @@ export function ScreenshotCanvas({
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
 
-      // Draw selection overlay
-      if (selection) {
+      // Draw dimmed overlay outside selection
+      if (selection && selection.width > 0 && selection.height > 0) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.clearRect(selection.x, selection.y, selection.width, selection.height);
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width, canvas.height);
+        ctx.rect(selection.x, selection.y + selection.height, selection.width, -selection.height);
+        ctx.fill('evenodd');
+
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
         ctx.strokeRect(selection.x, selection.y, selection.width, selection.height);
