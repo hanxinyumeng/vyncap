@@ -10,6 +10,7 @@ interface ScreenshotCanvasProps {
   currentColor: string;
   currentSize: number;
   onSelectionChange: (selection: Rect | null) => void;
+  onSelectionComplete: () => void;
   onStartAnnotation: (tool: AnnotationTool, point: Point, color: string, size: number) => void;
   onUpdateAnnotation: (point: Point) => void;
   onFinishAnnotation: () => void;
@@ -25,6 +26,7 @@ export function ScreenshotCanvas({
   currentColor,
   currentSize,
   onSelectionChange,
+  onSelectionComplete,
   onStartAnnotation,
   onUpdateAnnotation,
   onFinishAnnotation,
@@ -219,10 +221,11 @@ export function ScreenshotCanvas({
     if (isDrawing) {
       setIsDrawing(false);
       setStartPoint(null);
+      onSelectionComplete();
     } else if (selection) {
       onFinishAnnotation();
     }
-  }, [isDrawing, selection, onFinishAnnotation]);
+  }, [isDrawing, selection, onFinishAnnotation, onSelectionComplete]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (currentTool === 'text' && selection) {

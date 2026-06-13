@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useScreenshot } from './hooks/useScreenshot';
 import { useAnnotation } from './hooks/useAnnotation';
 import { ScreenshotCanvas } from './components/ScreenshotCanvas';
@@ -8,6 +8,8 @@ import { SizeSelector } from './components/SizeSelector';
 import { ActionButtons } from './components/ActionButtons';
 
 export default function App() {
+  const [selectionComplete, setSelectionComplete] = useState(false);
+
   const {
     state,
     captureScreen,
@@ -40,6 +42,7 @@ export default function App() {
       }
       if (e.key === 'Escape') {
         if (state.image) {
+          setSelectionComplete(false);
           reset();
         }
       }
@@ -65,16 +68,23 @@ export default function App() {
     link.download = `screenshot-${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+    setSelectionComplete(false);
     await reset();
   };
 
   const handleCancel = async () => {
+    setSelectionComplete(false);
     await reset();
   };
 
   const handleCopy = async () => {
     await copyToClipboard();
+    setSelectionComplete(false);
     await reset();
+  };
+
+  const handleSelectionComplete = () => {
+    setSelectionComplete(true);
   };
 
   if (!state.image) {
@@ -107,14 +117,20 @@ export default function App() {
         currentColor={state.currentColor}
         currentSize={state.currentSize}
         onSelectionChange={setSelection}
+        onSelectionComplete={handleSelectionComplete}
         onStartAnnotation={startAnnotation}
         onUpdateAnnotation={updateAnnotation}
         onFinishAnnotation={finishAnnotation}
         onAddTextAnnotation={addTextAnnotation}
       />
 
-      {state.selection && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+      {selectionComplete && state.selection && (
+        <div className="absolute bottom-4 right-4 z-50 flex flex-col gap-2 items-end">
+          <ActionButtons
+            onCopy={handleCopy}
+            onSave={handleSave}
+            onCancel={handleCancel}
+          />
           <Toolbar
             currentTool={state.currentTool}
             onToolChange={setCurrentTool}
@@ -123,33 +139,13 @@ export default function App() {
             canUndo={canUndo}
             canRedo={canRedo}
           />
-        </div>
-      )}
-
-      {state.selection && (
-        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-50">
           <ColorPicker
             currentColor={state.currentColor}
             onColorChange={setCurrentColor}
           />
-        </div>
-      )}
-
-      {state.selection && (
-        <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-50">
           <SizeSelector
             currentSize={state.currentSize}
             onSizeChange={setCurrentSize}
-          />
-        </div>
-      )}
-
-      {state.selection && (
-        <div className="absolute bottom-4 right-4 z-50">
-          <ActionButtons
-            onCopy={handleCopy}
-            onSave={handleSave}
-            onCancel={handleCancel}
           />
         </div>
       )}
