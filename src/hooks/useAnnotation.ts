@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Annotation, AnnotationTool, Point, Rect } from '../types';
+import { Annotation, AnnotationTool, Point } from '../types';
 import { useHistory } from './useHistory';
 
 export function useAnnotation() {

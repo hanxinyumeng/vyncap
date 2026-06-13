@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface ActionButtonsProps {
   onCopy: () => void;
   onSave: () => void;

@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface SizeSelectorProps {
   currentSize: number;
   onSizeChange: (size: number) => void;
