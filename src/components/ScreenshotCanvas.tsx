@@ -241,7 +241,8 @@ export function ScreenshotCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className="max-w-full max-h-full"
+      className="block w-full h-full object-contain"
+      style={{ cursor: selection ? 'crosshair' : 'crosshair' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

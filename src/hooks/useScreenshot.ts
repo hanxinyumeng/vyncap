@@ -17,7 +17,8 @@ export function useScreenshot() {
   const captureScreen = useCallback(async () => {
     try {
       const base64 = await invoke<string>('capture_screen');
-      setState(prev => ({ ...prev, image: base64 }));
+      setState(prev => ({ ...prev, image: base64, selection: null }));
+      await invoke('set_fullscreen');
       return base64;
     } catch (error) {
       console.error('Failed to capture screen:', error);
@@ -44,12 +45,22 @@ export function useScreenshot() {
   const copyToClipboard = useCallback(async () => {
     if (!state.image) return;
     try {
-      await invoke('copy_to_clipboard', { base64Data: state.image });
+      await navigator.clipboard.writeText(`data:image/png;base64,${state.image}`);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
       throw error;
     }
   }, [state.image]);
+
+  const reset = useCallback(async () => {
+    setState(prev => ({
+      ...prev,
+      image: null,
+      selection: null,
+      annotations: [],
+    }));
+    await invoke('set_windowed');
+  }, []);
 
   return {
     state,
@@ -59,5 +70,6 @@ export function useScreenshot() {
     setCurrentColor,
     setCurrentSize,
     copyToClipboard,
+    reset,
   };
 }

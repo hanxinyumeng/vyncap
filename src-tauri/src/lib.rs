@@ -1,27 +1,37 @@
 mod screenshot;
-mod clipboard;
-mod hotkey;
+
+use tauri::Manager;
 
 #[tauri::command]
-fn capture_screen() -> Result<String, String> {
-    screenshot::capture_screen()
+fn set_fullscreen(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_fullscreen(true).map_err(|e| e.to_string())?;
+        window.set_decorations(false).map_err(|e| e.to_string())?;
+        window.set_always_on_top(true).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
-fn copy_to_clipboard(base64_data: String) -> Result<(), String> {
-    clipboard::copy_image_to_clipboard(&base64_data)
+fn set_windowed(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_fullscreen(false).map_err(|e| e.to_string())?;
+        window.set_decorations(true).map_err(|e| e.to_string())?;
+        window.set_always_on_top(false).map_err(|e| e.to_string())?;
+        window.set_size(tauri::LogicalSize::new(800, 600)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![capture_screen, copy_to_clipboard])
-        .setup(|app| {
-            hotkey::register_hotkey(&app.handle())?;
-            Ok(())
-        })
+        .invoke_handler(tauri::generate_handler![
+            screenshot::capture_screen,
+            set_fullscreen,
+            set_windowed
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

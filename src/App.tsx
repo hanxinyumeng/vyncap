@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
 import { useScreenshot } from './hooks/useScreenshot';
 import { useAnnotation } from './hooks/useAnnotation';
 import { ScreenshotCanvas } from './components/ScreenshotCanvas';
@@ -17,6 +16,7 @@ export default function App() {
     setCurrentColor,
     setCurrentSize,
     copyToClipboard,
+    reset,
   } = useScreenshot();
 
   const {
@@ -32,23 +32,49 @@ export default function App() {
     canRedo,
   } = useAnnotation();
 
-  // Listen for screenshot trigger from hotkey
   useEffect(() => {
-    const unsubscribe = listen('screenshot-triggered', () => {
-      captureScreen();
-    });
-
-    return () => {
-      unsubscribe.then(fn => fn());
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        captureScreen();
+      }
+      if (e.key === 'Escape') {
+        if (state.image) {
+          reset();
+        }
+      }
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+      }
+      if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
     };
-  }, [captureScreen]);
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [captureScreen, setSelection, undo, redo, reset, state.image]);
 
   const handleSave = async () => {
-    console.log('Save functionality to be implemented');
+    if (!state.image) return;
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `screenshot-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    await reset();
   };
 
-  const handleCancel = () => {
-    setSelection(null);
+  const handleCancel = async () => {
+    await reset();
+  };
+
+  const handleCopy = async () => {
+    await copyToClipboard();
+    await reset();
   };
 
   if (!state.image) {
@@ -71,7 +97,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative h-screen bg-gray-900">
+    <div className="fixed inset-0 overflow-hidden bg-black">
       <ScreenshotCanvas
         image={state.image}
         selection={state.selection}
@@ -88,7 +114,7 @@ export default function App() {
       />
 
       {state.selection && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
           <Toolbar
             currentTool={state.currentTool}
             onToolChange={setCurrentTool}
@@ -101,7 +127,7 @@ export default function App() {
       )}
 
       {state.selection && (
-        <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-50">
           <ColorPicker
             currentColor={state.currentColor}
             onColorChange={setCurrentColor}
@@ -110,7 +136,7 @@ export default function App() {
       )}
 
       {state.selection && (
-        <div className="absolute top-28 left-1/2 transform -translate-x-1/2">
+        <div className="absolute top-28 left-1/2 transform -translate-x-1/2 z-50">
           <SizeSelector
             currentSize={state.currentSize}
             onSizeChange={setCurrentSize}
@@ -119,9 +145,9 @@ export default function App() {
       )}
 
       {state.selection && (
-        <div className="absolute bottom-4 right-4">
+        <div className="absolute bottom-4 right-4 z-50">
           <ActionButtons
-            onCopy={copyToClipboard}
+            onCopy={handleCopy}
             onSave={handleSave}
             onCancel={handleCancel}
           />
