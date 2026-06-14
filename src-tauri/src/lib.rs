@@ -1,4 +1,5 @@
 mod screenshot;
+mod ai;
 
 use tauri::Manager;
 
@@ -50,7 +51,8 @@ pub fn run() {
             set_fullscreen,
             set_windowed,
             hide_window,
-            show_window
+            show_window,
+            ai::fetch_ai
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

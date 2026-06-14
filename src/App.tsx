@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useScreenshot } from './hooks/useScreenshot';
 import { useAI } from './hooks/useAI';
+import { useShortcuts } from './hooks/useShortcuts';
 import { ScreenshotCanvas } from './components/ScreenshotCanvas';
 import { ActionButtons } from './components/ActionButtons';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -25,10 +26,11 @@ export default function App() {
   } = useScreenshot();
 
   const { config, setConfig, askAI, answer, loading: aiLoading, error: aiError, clearAnswer } = useAI();
+  const { config: shortcuts, setConfig: setShortcuts, matchesShortcut } = useShortcuts();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') { e.preventDefault(); captureScreen(); }
+      if (matchesShortcut(e, shortcuts.capture)) { e.preventDefault(); captureScreen(); }
       if (e.key === 'Escape') {
         if (showSettings) { setShowSettings(false); return; }
         if (answer || aiError) { clearAnswer(); return; }
@@ -37,7 +39,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [captureScreen, setSelection, reset, state.image, showSettings, answer, aiError, clearAnswer]);
+  }, [captureScreen, setSelection, reset, state.image, showSettings, answer, aiError, clearAnswer, shortcuts, matchesShortcut]);
 
   const getCroppedImage = (): string | null => {
     const canvas = document.querySelector('canvas');
@@ -73,10 +75,18 @@ export default function App() {
     const src = getCroppedImage();
     if (!src) return;
     try {
+      console.log('[Copy] Converting data URL to blob via fetch, length:', src.length);
       const resp = await fetch(src);
+      if (!resp.ok) throw new Error(`fetch data URL failed: ${resp.status} ${resp.statusText}`);
       const blob = await resp.blob();
+      console.log('[Copy] Blob size:', blob.size, 'type:', blob.type);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    } catch { await copyToClipboard(); }
+      console.log('[Copy] Clipboard write success');
+    } catch (e: any) {
+      console.error('[Copy] fetch->clipboard failed:', e.name, e.message);
+      console.log('[Copy] Falling back to copyToClipboard');
+      await copyToClipboard();
+    }
     setSelectionComplete(false);
     await reset();
   };
@@ -125,12 +135,13 @@ export default function App() {
               开始截图
             </button>
             <button onClick={() => setShowSettings(true)} className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
-              AI 设置
+              设置
             </button>
           </div>
-          {!config.apiKey && <p className="text-orange-500 text-sm mt-4">⚠ 请先点击「AI 设置」配置 API Key</p>}
+          <p className="text-gray-400 text-sm mt-2">快捷键: {shortcuts.capture}</p>
+          {!config.apiKey && <p className="text-orange-500 text-sm mt-4">⚠ 请先点击「设置」配置 API Key</p>}
         </div>
-        {showSettings && <SettingsPanel config={config} onChange={setConfig} onClose={() => setShowSettings(false)} />}
+        {showSettings && <SettingsPanel config={config} onConfigChange={setConfig} shortcuts={shortcuts} onShortcutsChange={setShortcuts} onClose={() => setShowSettings(false)} />}
         {pinnedImages.map(pin => (
           <div key={pin.id} className="fixed shadow-2xl border border-gray-300 rounded overflow-hidden z-50"
             style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
@@ -158,13 +169,6 @@ export default function App() {
         const right = window.innerWidth - (sel.x + sel.width);
         return (
           <div className="absolute z-50 flex gap-1.5 items-center" style={{ top, right }}>
-            <button onClick={() => setShowSettings(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-gray-700 hover:bg-gray-200 shadow-lg transition-colors"
-              title="AI 设置">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
             <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} onAI={handleAI} aiLoading={aiLoading} />
           </div>
         );
@@ -206,7 +210,7 @@ export default function App() {
         </div>
       ))}
 
-      {showSettings && <SettingsPanel config={config} onChange={setConfig} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel config={config} onConfigChange={setConfig} shortcuts={shortcuts} onShortcutsChange={setShortcuts} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

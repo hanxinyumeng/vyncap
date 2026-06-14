@@ -39,3 +39,7 @@ export interface AIConfig {
   model: string;
   prompt: string;
 }
+
+export interface ShortcutsConfig {
+  capture: string;
+}

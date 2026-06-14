@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { AIConfig } from '../types';
 
 const STORAGE_KEY = 'ai-config';
@@ -58,32 +59,41 @@ export function useAI() {
       console.log('[AI] API Key:', config.apiKey.substring(0, 8) + '...');
       console.log('[AI] Body size:', JSON.stringify(body).length, 'bytes');
 
-      const resp = await fetch(config.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`,
+      const endpoint = config.apiUrl.endsWith('/chat/completions')
+        ? config.apiUrl
+        : config.apiUrl.replace(/\/+$/, '') + '/chat/completions';
+
+      const resp = await invoke<{ status: number; body: string }>('fetch_ai', {
+        req: {
+          url: endpoint,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`,
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
       });
 
-      console.log('[AI] Response status:', resp.status, resp.statusText);
+      console.log('[AI] Response status:', resp.status);
 
-      if (!resp.ok) {
-        const errText = await resp.text();
-        console.error('[AI] Error response:', errText);
-        throw new Error(`API 错误 (${resp.status}): ${errText.substring(0, 200)}`);
+      if (resp.status < 200 || resp.status >= 300) {
+        console.error('[AI] Error response:', resp.body.substring(0, 500));
+        throw new Error(`API 错误 (${resp.status}): ${resp.body.substring(0, 200)}`);
       }
 
-      const data = await resp.json();
+      const data = JSON.parse(resp.body);
       console.log('[AI] Response data:', JSON.stringify(data).substring(0, 300));
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error('API 返回内容为空');
       setAnswer(content);
     } catch (e: any) {
-      console.error('[AI] Exception:', e);
+      console.error('[AI] ====== REQUEST ERROR ======');
       console.error('[AI] Exception name:', e.name);
       console.error('[AI] Exception message:', e.message);
+      console.error('[AI] Exception stack:', e.stack);
+      console.error('[AI] Config URL:', config.apiUrl);
+      console.error('[AI] Config model:', config.model);
       setError(`${e.name}: ${e.message}`);
     } finally {
       setLoading(false);
