@@ -2,9 +2,13 @@ import { useEffect, useState, useRef } from 'react';
 import { useScreenshot } from './hooks/useScreenshot';
 import { useAI } from './hooks/useAI';
 import { useShortcuts } from './hooks/useShortcuts';
+import { useSettings } from './hooks/useSettings';
+import { I18nContext } from './i18n/context';
+import { locales } from './i18n/locales';
 import { ScreenshotCanvas } from './components/ScreenshotCanvas';
 import { ActionButtons } from './components/ActionButtons';
 import { SettingsPanel } from './components/SettingsPanel';
+import { AIButton } from './types';
 
 interface PinnedImage {
   id: number;
@@ -21,16 +25,19 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const dragRef = useRef<{ id: number; offsetX: number; offsetY: number } | null>(null);
 
+  const { settings, updateSettings } = useSettings();
+  const t = locales[settings.language];
+
   const {
     state, captureScreen, setSelection, copyToClipboard, reset,
   } = useScreenshot();
 
-  const { config, setConfig, askAI, answer, loading: aiLoading, error: aiError, clearAnswer } = useAI();
-  const { config: shortcuts, setConfig: setShortcuts, matchesShortcut } = useShortcuts();
+  const { askAI, answer, loading: aiLoading, error: aiError, clearAnswer } = useAI(settings.ai);
+  const { matchesShortcut } = useShortcuts();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (matchesShortcut(e, shortcuts.capture)) { e.preventDefault(); captureScreen(); }
+      if (matchesShortcut(e, settings.shortcuts.capture)) { e.preventDefault(); captureScreen(); }
       if (e.key === 'Escape') {
         if (showSettings) { setShowSettings(false); return; }
         if (answer || aiError) { clearAnswer(); return; }
@@ -48,7 +55,7 @@ export default function App() {
       window.removeEventListener('trigger-capture', handleTriggerCapture);
       window.removeEventListener('trigger-settings', handleTriggerSettings);
     };
-  }, [captureScreen, setSelection, reset, state.image, showSettings, answer, aiError, clearAnswer, shortcuts, matchesShortcut]);
+  }, [captureScreen, reset, state.image, showSettings, answer, aiError, clearAnswer, settings.shortcuts, matchesShortcut]);
 
   const getCroppedImage = (): string | null => {
     const canvas = document.querySelector('canvas');
@@ -84,16 +91,10 @@ export default function App() {
     const src = getCroppedImage();
     if (!src) return;
     try {
-      console.log('[Copy] Converting data URL to blob via fetch, length:', src.length);
       const resp = await fetch(src);
-      if (!resp.ok) throw new Error(`fetch data URL failed: ${resp.status} ${resp.statusText}`);
       const blob = await resp.blob();
-      console.log('[Copy] Blob size:', blob.size, 'type:', blob.type);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      console.log('[Copy] Clipboard write success');
-    } catch (e: any) {
-      console.error('[Copy] fetch->clipboard failed:', e.name, e.message);
-      console.log('[Copy] Falling back to copyToClipboard');
+    } catch {
       await copyToClipboard();
     }
     setSelectionComplete(false);
@@ -109,10 +110,10 @@ export default function App() {
     reset();
   };
 
-  const handleAI = async () => {
+  const handleAI = async (button: AIButton) => {
     const src = getCroppedImage();
     if (!src) return;
-    await askAI(src);
+    await askAI(src, button.prompt);
   };
 
   const handlePinDragStart = (id: number, e: React.MouseEvent) => {
@@ -132,94 +133,104 @@ export default function App() {
   const closePin = (id: number) => setPinnedImages(prev => prev.filter(p => p.id !== id));
   const handleSelectionComplete = () => setSelectionComplete(true);
 
-  // Home screen
-  if (!state.image) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">AI 答题助手</h1>
-          <p className="text-gray-500 mb-6">截图 → 选区 → AI 解答</p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={captureScreen} className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
-              开始截图
-            </button>
-            <button onClick={() => setShowSettings(true)} className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
-              设置
-            </button>
-          </div>
-          <p className="text-gray-400 text-sm mt-2">快捷键: {shortcuts.capture}</p>
-          {!config.apiKey && <p className="text-orange-500 text-sm mt-4">⚠ 请先点击「设置」配置 API Key</p>}
-        </div>
-        {showSettings && <SettingsPanel config={config} onConfigChange={setConfig} shortcuts={shortcuts} onShortcutsChange={setShortcuts} onClose={() => setShowSettings(false)} />}
-        {pinnedImages.map(pin => (
-          <div key={pin.id} className="fixed shadow-2xl border border-gray-300 rounded overflow-hidden z-50"
-            style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
-            <button onClick={() => closePin(pin.id)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-700 z-10">×</button>
-            <img src={pin.src} className="pointer-events-none" draggable={false} style={{ width: pin.width, height: pin.height }} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Screenshot mode
   return (
-    <div className="fixed inset-0 overflow-hidden bg-transparent">
-      <ScreenshotCanvas
-        image={state.image} selection={state.selection}
-        onSelectionChange={setSelection} onSelectionComplete={handleSelectionComplete}
-      />
-
-      {selectionComplete && state.selection && (() => {
-        const sel = state.selection;
-        const gap = 8;
-        const belowOk = sel.y + sel.height + gap + 50 < window.innerHeight;
-        const top = belowOk ? sel.y + sel.height + gap : sel.y - gap - 50;
-        const right = window.innerWidth - (sel.x + sel.width);
-        return (
-          <div className="absolute z-50 flex gap-1.5 items-center" style={{ top, right }}>
-            <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} onAI={handleAI} aiLoading={aiLoading} />
-          </div>
-        );
-      })()}
-
-      {(answer || aiError || aiLoading) && selectionComplete && state.selection && (() => {
-        const sel = state.selection;
-        const top = sel.y + sel.height + 8;
-        const right = window.innerWidth - (sel.x + sel.width);
-        const width = Math.min(sel.width, window.innerWidth - sel.x - 16);
-        return (
-          <div className="absolute z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl border overflow-hidden"
-            style={{ top, right, width: Math.max(width, 300), maxHeight: 400 }}>
-            <div className="flex items-center justify-between px-4 py-2 bg-purple-50 border-b">
-              <span className="text-sm font-semibold text-purple-700">AI 解答</span>
-              <button onClick={clearAnswer} className="text-gray-400 hover:text-gray-600">×</button>
+    <I18nContext.Provider value={t}>
+      {!state.image ? (
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500 shadow-lg shadow-indigo-500/30 mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+              </svg>
             </div>
-            <div className="px-4 py-3 overflow-y-auto max-h-[340px]">
-              {aiLoading && (
-                <div className="flex items-center gap-2 text-purple-600">
-                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="8" />
-                  </svg>
-                  <span className="text-sm">正在分析截图...</span>
-                </div>
-              )}
-              {aiError && <div className="text-red-500 text-sm">{aiError}</div>}
-              {answer && <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{answer}</div>}
+            <h1 className="text-xl font-bold text-gray-800 mb-1">{t.app.title}</h1>
+            <p className="text-gray-400 text-sm mb-6">{t.app.subtitle}</p>
+            <div className="flex gap-2.5 justify-center">
+              <button onClick={captureScreen}
+                className="px-6 py-2.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 text-sm font-medium shadow-md shadow-indigo-500/25 transition-all hover:shadow-lg hover:shadow-indigo-500/30 active:scale-[0.98]">
+                {t.home.capture}
+              </button>
+              <button onClick={() => setShowSettings(true)}
+                className="px-5 py-2.5 bg-white text-gray-600 rounded-xl hover:bg-gray-50 text-sm font-medium border border-gray-200 shadow-sm transition-all active:scale-[0.98]">
+                {t.home.settings}
+              </button>
             </div>
+            <p className="text-gray-400 text-xs mt-4">{t.home.shortcut}: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{settings.shortcuts.capture}</span></p>
+            {!settings.ai.apiKey && <p className="text-amber-500 text-xs mt-3">⚠ {t.home.apiKeyWarning}</p>}
           </div>
-        );
-      })()}
-
-      {pinnedImages.map(pin => (
-        <div key={pin.id} className="fixed shadow-2xl border border-gray-300 rounded overflow-hidden z-[100]"
-          style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
-          <button onClick={() => closePin(pin.id)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-700 z-10">×</button>
-          <img src={pin.src} className="pointer-events-none" draggable={false} style={{ width: pin.width, height: pin.height }} />
+          {showSettings && <SettingsPanel settings={settings} onUpdate={updateSettings} onClose={() => setShowSettings(false)} />}
+          {pinnedImages.map(pin => (
+            <div key={pin.id} className="fixed shadow-2xl border border-gray-200 rounded-lg overflow-hidden z-50"
+              style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
+              <button onClick={() => closePin(pin.id)} className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70 z-10 backdrop-blur-sm">×</button>
+              <img src={pin.src} className="pointer-events-none" draggable={false} style={{ width: pin.width, height: pin.height }} />
+            </div>
+          ))}
         </div>
-      ))}
+      ) : (
+        <div className="fixed inset-0 overflow-hidden bg-transparent">
+          <ScreenshotCanvas
+            image={state.image} selection={state.selection}
+            onSelectionChange={setSelection} onSelectionComplete={handleSelectionComplete}
+          />
 
-      {showSettings && <SettingsPanel config={config} onConfigChange={setConfig} shortcuts={shortcuts} onShortcutsChange={setShortcuts} onClose={() => setShowSettings(false)} />}
-    </div>
+          {selectionComplete && state.selection && (() => {
+            const sel = state.selection;
+            const gap = 10;
+            const belowOk = sel.y + sel.height + gap + 44 < window.innerHeight;
+            const top = belowOk ? sel.y + sel.height + gap : sel.y - gap - 44;
+            const right = window.innerWidth - (sel.x + sel.width);
+            return (
+              <div className="absolute z-50" style={{ top, right }}>
+                <ActionButtons
+                  toolbarButtons={settings.toolbarButtons}
+                  aiButtons={settings.ai.aiButtons}
+                  onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin}
+                  onAI={handleAI} aiLoading={aiLoading}
+                />
+              </div>
+            );
+          })()}
+
+          {(answer || aiError || aiLoading) && selectionComplete && state.selection && (() => {
+            const sel = state.selection;
+            const top = sel.y + sel.height + 10;
+            const right = window.innerWidth - (sel.x + sel.width);
+            const width = Math.min(sel.width, window.innerWidth - sel.x - 16);
+            return (
+              <div className="absolute z-40 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-200/80 overflow-hidden"
+                style={{ top, right, width: Math.max(width, 320), maxHeight: 420 }}>
+                <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-50/80 border-b border-indigo-100">
+                  <span className="text-xs font-semibold text-indigo-600">{t.ai.title}</span>
+                  <button onClick={clearAnswer} className="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-white hover:text-gray-600 transition-colors text-xs">×</button>
+                </div>
+                <div className="px-4 py-3 overflow-y-auto max-h-[360px]">
+                  {aiLoading && (
+                    <div className="flex items-center gap-2.5 text-indigo-500 py-2">
+                      <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeDasharray="32" strokeDashoffset="8" />
+                      </svg>
+                      <span className="text-xs">{t.ai.analyzing}</span>
+                    </div>
+                  )}
+                  {aiError && <div className="text-red-500 text-xs py-1">{aiError}</div>}
+                  {answer && <div className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{answer}</div>}
+                </div>
+              </div>
+            );
+          })()}
+
+          {pinnedImages.map(pin => (
+            <div key={pin.id} className="fixed shadow-2xl border border-gray-200 rounded-lg overflow-hidden z-[100]"
+              style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>
+              <button onClick={() => closePin(pin.id)} className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full text-xs flex items-center justify-center hover:bg-black/70 z-10 backdrop-blur-sm">×</button>
+              <img src={pin.src} className="pointer-events-none" draggable={false} style={{ width: pin.width, height: pin.height }} />
+            </div>
+          ))}
+
+          {showSettings && <SettingsPanel settings={settings} onUpdate={updateSettings} onClose={() => setShowSettings(false)} />}
+        </div>
+      )}
+    </I18nContext.Provider>
   );
 }
