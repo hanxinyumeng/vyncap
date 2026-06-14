@@ -9,7 +9,7 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'general' | 'ai' | 'aiButtons' | 'shortcuts' | 'toolbar';
+type Tab = 'general' | 'ai' | 'aiButtons';
 
 export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProps) {
   const t = useI18n();
@@ -45,8 +45,6 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
     { id: 'general', label: t.settings.tabs.general },
     { id: 'ai', label: t.settings.tabs.ai },
     { id: 'aiButtons', label: t.settings.tabs.aiButtons },
-    { id: 'shortcuts', label: t.settings.tabs.shortcuts },
-    { id: 'toolbar', label: t.settings.tabs.toolbar },
   ];
 
   const tabClass = (id: Tab) =>
@@ -134,6 +132,36 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
                       }`}>
                       {lang === 'zh' ? '中文' : 'English'}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <label className={labelCls}>{t.settings.captureShortcut}</label>
+                <div className="flex gap-2">
+                  <input type="text" readOnly value={settings.shortcuts.capture}
+                    className={`flex-1 px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:outline-none font-mono ${recording ? 'border-indigo-400 ring-2 ring-indigo-500/30' : 'border-gray-200'}`} />
+                  <button onClick={() => setRecording(true)}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                      recording ? 'bg-red-500 text-white animate-pulse shadow-md' : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                    }`}>
+                    {recording ? t.settings.recording : t.settings.recordBtn}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">{t.settings.shortcutHint}</p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <label className={labelCls}>{t.settings.toolbarVisible}</label>
+                <p className="text-[11px] text-gray-400 mb-3">{t.settings.toolbarHint}</p>
+                <div className="space-y-2">
+                  {ALL_TOOLBAR.map(({ id, label }) => (
+                    <label key={id} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                      <input type="checkbox" checked={settings.toolbarButtons.includes(id)}
+                        onChange={() => toggleToolbarBtn(id)}
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40" />
+                      <span className="text-sm text-gray-700">{label}</span>
+                    </label>
                   ))}
                 </div>
               </div>
@@ -241,55 +269,6 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
             </>
           )}
 
-          {tab === 'shortcuts' && (
-            <div>
-              <label className={labelCls}>{t.settings.captureShortcut}</label>
-              <div className="flex gap-2">
-                <input type="text" readOnly value={settings.shortcuts.capture}
-                  className={`flex-1 px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:outline-none font-mono ${recording ? 'border-indigo-400 ring-2 ring-indigo-500/30' : 'border-gray-200'}`} />
-                <button onClick={() => setRecording(true)}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    recording ? 'bg-red-500 text-white animate-pulse shadow-md' : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                  }`}>
-                  {recording ? t.settings.recording : t.settings.recordBtn}
-                </button>
-              </div>
-              <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">{t.settings.shortcutHint}</p>
-            </div>
-          )}
-
-          {tab === 'toolbar' && (
-            <>
-              <div>
-                <label className={labelCls}>{t.settings.toolbarVisible}</label>
-                <p className="text-[11px] text-gray-400 mb-3">{t.settings.toolbarHint}</p>
-                <div className="space-y-2">
-                  {ALL_TOOLBAR.map(({ id, label }) => (
-                    <label key={id} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={settings.toolbarButtons.includes(id)}
-                        onChange={() => toggleToolbarBtn(id)}
-                        className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40" />
-                      <span className="text-sm text-gray-700">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>{t.settings.tabs.aiButtons}</label>
-                <div className="space-y-2">
-                  {settings.ai.aiButtons.map(btn => (
-                    <div key={btn.id} className="flex items-center gap-2.5 p-2.5 rounded-lg border border-gray-100 bg-gray-50/50">
-                      <span className="text-base">{btn.icon}</span>
-                      <span className="text-sm text-gray-600">{btn.label}</span>
-                    </div>
-                  ))}
-                  {settings.ai.aiButtons.length === 0 && (
-                    <p className="text-xs text-gray-300 text-center py-3">—</p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
         </div>
 
         <div className="px-6 py-3 border-t border-gray-100 flex justify-end">
