@@ -8,10 +8,10 @@ interface ActionButtonsProps {
 }
 
 export function ActionButtons({ onCopy, onSave, onCancel, onPin, onAI, aiLoading }: ActionButtonsProps) {
-  const btnBase = "w-9 h-9 flex items-center justify-center rounded-lg text-white transition-colors hover:bg-white/20";
+  const btnBase = "w-9 h-9 flex items-center justify-center rounded-lg text-gray-700 transition-colors hover:bg-gray-200";
 
   return (
-    <div className="flex gap-1.5 p-1.5 bg-gray-800/90 rounded-lg shadow-lg backdrop-blur-sm">
+    <div className="flex gap-1.5 p-1.5 bg-white rounded-lg shadow-lg">
       <button onClick={onAI} disabled={aiLoading}
         className={`${btnBase} disabled:opacity-50`}
         title="AI 答题"
