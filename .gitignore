@@ -27,3 +27,15 @@ npm-debug.log*
 src-tauri/WixTools/
 src-tauri/Frameworks/
 src-tauri/Resources/
+
+# Vendor crates (large, downloaded separately)
+src-tauri/vendor/
+src-tauri/.cargo/
+src-tauri/Cargo.lock.bak
+src-tauri/Cargo.lock.bak2
+src-tauri/Cargo_orig.lock
+src-tauri/gen/
+
+# Vendor/build scripts
+*.ps1
+proxy.py
