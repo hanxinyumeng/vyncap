@@ -39,7 +39,7 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesShortcut(e, settings.shortcuts.capture)) { e.preventDefault(); captureScreen(); }
       if (e.key === 'Escape') {
-        if (showSettings) { setShowSettings(false); return; }
+        if (showSettings && state.image) { setShowSettings(false); return; }
         if (answer || aiError) { clearAnswer(); return; }
         if (state.image) { setSelectionComplete(false); reset(); }
       }
@@ -136,29 +136,29 @@ export default function App() {
   return (
     <I18nContext.Provider value={t}>
       {!state.image ? (
-        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500 shadow-lg shadow-indigo-500/30 mb-4">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-gray-800 mb-1">{t.app.title}</h1>
-            <p className="text-gray-400 text-sm mb-6">{t.app.subtitle}</p>
-            <div className="flex gap-2.5 justify-center">
+        <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+          {/* Left: Hero */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500 shadow-lg shadow-indigo-500/30 mb-4">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+                </svg>
+              </div>
+              <h1 className="text-xl font-bold text-gray-800 mb-1">{t.app.title}</h1>
+              <p className="text-gray-400 text-sm mb-6">{t.app.subtitle}</p>
               <button onClick={captureScreen}
-                className="px-6 py-2.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 text-sm font-medium shadow-md shadow-indigo-500/25 transition-all hover:shadow-lg hover:shadow-indigo-500/30 active:scale-[0.98]">
+                className="px-8 py-2.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 text-sm font-medium shadow-md shadow-indigo-500/25 transition-all hover:shadow-lg hover:shadow-indigo-500/30 active:scale-[0.98]">
                 {t.home.capture}
               </button>
-              <button onClick={() => setShowSettings(true)}
-                className="px-5 py-2.5 bg-white text-gray-600 rounded-xl hover:bg-gray-50 text-sm font-medium border border-gray-200 shadow-sm transition-all active:scale-[0.98]">
-                {t.home.settings}
-              </button>
+              <p className="text-gray-400 text-xs mt-4">{t.home.shortcut}: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{settings.shortcuts.capture}</span></p>
+              {!settings.ai.apiKey && <p className="text-amber-500 text-xs mt-3">⚠ {t.home.apiKeyWarning}</p>}
             </div>
-            <p className="text-gray-400 text-xs mt-4">{t.home.shortcut}: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{settings.shortcuts.capture}</span></p>
-            {!settings.ai.apiKey && <p className="text-amber-500 text-xs mt-3">⚠ {t.home.apiKeyWarning}</p>}
           </div>
-          {showSettings && <SettingsPanel settings={settings} onUpdate={updateSettings} onClose={() => setShowSettings(false)} />}
+
+          {/* Right: Settings inline */}
+          <SettingsPanel settings={settings} onUpdate={updateSettings} mode="inline" />
+
           {pinnedImages.map(pin => (
             <div key={pin.id} className="fixed shadow-2xl border border-gray-200 rounded-lg overflow-hidden z-50"
               style={{ left: pin.x, top: pin.y }} onMouseDown={e => handlePinDragStart(pin.id, e)}>

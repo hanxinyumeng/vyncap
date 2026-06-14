@@ -6,12 +6,13 @@ import type { Lang } from '../i18n/locales';
 interface SettingsPanelProps {
   settings: AppSettings;
   onUpdate: (updater: (prev: AppSettings) => AppSettings) => void;
-  onClose: () => void;
+  onClose?: () => void;
+  mode?: 'inline' | 'modal';
 }
 
 type Tab = 'general' | 'ai' | 'aiButtons';
 
-export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: SettingsPanelProps) {
   const t = useI18n();
   const [tab, setTab] = useState<Tab>('general');
   const [recording, setRecording] = useState(false);
@@ -48,12 +49,12 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
   ];
 
   const tabClass = (id: Tab) =>
-    `px-3 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+    `px-3 py-1.5 text-[11px] font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
       tab === id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
     }`;
 
   const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition-all placeholder:text-gray-300';
-  const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider';
+  const labelCls = 'block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider';
 
   const startEdit = (btn: AIButton) => {
     setEditingBtn(btn);
@@ -103,6 +104,180 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
     { id: 'pin', label: t.toolbar.pin },
   ];
 
+  const content = (
+    <>
+      <div className="flex border-b border-gray-100 px-4 gap-0">
+        {tabDefs.map(d => (
+          <button key={d.id} className={tabClass(d.id)} onClick={() => setTab(d.id)}>{d.label}</button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {tab === 'general' && (
+          <>
+            <div>
+              <label className={labelCls}>{t.settings.language}</label>
+              <div className="flex gap-2">
+                {(['zh', 'en'] as Lang[]).map(lang => (
+                  <button key={lang} onClick={() => onUpdate(p => ({ ...p, language: lang }))}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      settings.language === lang
+                        ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}>
+                    {lang === 'zh' ? '中文' : 'English'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-3">
+              <label className={labelCls}>{t.settings.captureShortcut}</label>
+              <div className="flex gap-2">
+                <input type="text" readOnly value={settings.shortcuts.capture}
+                  className={`flex-1 px-3 py-1.5 border rounded-lg text-xs bg-gray-50 focus:outline-none font-mono ${recording ? 'border-indigo-400 ring-2 ring-indigo-500/30' : 'border-gray-200'}`} />
+                <button onClick={() => setRecording(true)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                    recording ? 'bg-red-500 text-white animate-pulse shadow-md' : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                  }`}>
+                  {recording ? t.settings.recording : t.settings.recordBtn}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">{t.settings.shortcutHint}</p>
+            </div>
+
+            <div className="border-t border-gray-100 pt-3">
+              <label className={labelCls}>{t.settings.toolbarVisible}</label>
+              <p className="text-[10px] text-gray-400 mb-2">{t.settings.toolbarHint}</p>
+              <div className="space-y-1.5">
+                {ALL_TOOLBAR.map(({ id, label }) => (
+                  <label key={id} className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                    <input type="checkbox" checked={settings.toolbarButtons.includes(id)}
+                      onChange={() => toggleToolbarBtn(id)}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40" />
+                    <span className="text-xs text-gray-600">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === 'ai' && (
+          <>
+            <div>
+              <label className={labelCls}>{t.settings.apiUrl}</label>
+              <input type="text" value={settings.ai.apiUrl}
+                onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, apiUrl: e.target.value } }))}
+                className={inputCls} placeholder={t.settings.apiUrlPh} />
+            </div>
+            <div>
+              <label className={labelCls}>{t.settings.apiKey}</label>
+              <input type="password" value={settings.ai.apiKey}
+                onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, apiKey: e.target.value } }))}
+                className={inputCls} placeholder={t.settings.apiKeyPh} />
+            </div>
+            <div>
+              <label className={labelCls}>{t.settings.model}</label>
+              <input type="text" value={settings.ai.model}
+                onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, model: e.target.value } }))}
+                className={inputCls} placeholder={t.settings.modelPh} />
+            </div>
+            <div>
+              <label className={labelCls}>{t.settings.prompt}</label>
+              <textarea value={settings.ai.prompt}
+                onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, prompt: e.target.value } }))}
+                rows={3} className={`${inputCls} resize-none`} placeholder={t.settings.promptPh} />
+            </div>
+          </>
+        )}
+
+        {tab === 'aiButtons' && (
+          <>
+            {editingBtn ? (
+              <div className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <h3 className="text-xs font-semibold text-gray-700">
+                  {editingBtn.id && settings.ai.aiButtons.find(b => b.id === editingBtn.id) ? t.settings.editAiButton : t.settings.addAiButton}
+                </h3>
+                <div className="grid grid-cols-[72px_1fr] gap-2.5 items-start">
+                  <div>
+                    <label className={labelCls}>{t.settings.btnIcon}</label>
+                    <input type="text" value={draftBtn.icon}
+                      onChange={e => setDraftBtn(p => ({ ...p, icon: e.target.value }))}
+                      className={`${inputCls} text-center text-base`} maxLength={4} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>{t.settings.btnLabel}</label>
+                    <input type="text" value={draftBtn.label}
+                      onChange={e => setDraftBtn(p => ({ ...p, label: e.target.value }))}
+                      className={inputCls} placeholder={t.settings.btnLabelPh} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>{t.settings.btnPrompt}</label>
+                  <textarea value={draftBtn.prompt}
+                    onChange={e => setDraftBtn(p => ({ ...p, prompt: e.target.value }))}
+                    rows={3} className={`${inputCls} resize-none`} placeholder={t.settings.btnPromptPh} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  {editingBtn.id && settings.ai.aiButtons.find(b => b.id === editingBtn.id) && (
+                    <button onClick={() => deleteAiButton(editingBtn.id)}
+                      className="px-2.5 py-1 text-[11px] font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                      {t.settings.delete}
+                    </button>
+                  )}
+                  <button onClick={() => setEditingBtn(null)}
+                    className="px-2.5 py-1 text-[11px] font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    {t.settings.cancel}
+                  </button>
+                  <button onClick={saveAiButton}
+                    className="px-2.5 py-1 text-[11px] font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors">
+                    {t.settings.save}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={startNew}
+                className="w-full py-1.5 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
+                + {t.settings.addAiButton}
+              </button>
+            )}
+
+            <div className="space-y-1.5">
+              {settings.ai.aiButtons.length === 0 && !editingBtn && (
+                <p className="text-center text-[11px] text-gray-300 py-3">{t.settings.noAiButtons}</p>
+              )}
+              {settings.ai.aiButtons.map(btn => (
+                <div key={btn.id} onClick={() => startEdit(btn)}
+                  className="flex items-center gap-2.5 p-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all">
+                  <span className="text-base w-7 h-7 flex items-center justify-center bg-gray-50 rounded-lg">{btn.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-gray-700">{btn.label}</div>
+                    <div className="text-[10px] text-gray-400 truncate">{btn.prompt}</div>
+                  </div>
+                  <svg className="w-3.5 h-3.5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+
+  if (mode === 'inline') {
+    return (
+      <div className="w-[380px] h-full bg-white border-l border-gray-200 flex flex-col">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700">{t.settings.title}</h2>
+        </div>
+        {content}
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[200]" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-[520px] max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -110,173 +285,7 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
           <h2 className="text-base font-semibold text-gray-800">{t.settings.title}</h2>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors text-lg leading-none">×</button>
         </div>
-
-        <div className="flex border-b border-gray-100 px-4 gap-0">
-          {tabDefs.map(d => (
-            <button key={d.id} className={tabClass(d.id)} onClick={() => setTab(d.id)}>{d.label}</button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          {tab === 'general' && (
-            <>
-              <div>
-                <label className={labelCls}>{t.settings.language}</label>
-                <div className="flex gap-2">
-                  {(['zh', 'en'] as Lang[]).map(lang => (
-                    <button key={lang} onClick={() => onUpdate(p => ({ ...p, language: lang }))}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${
-                        settings.language === lang
-                          ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
-                      }`}>
-                      {lang === 'zh' ? '中文' : 'English'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <label className={labelCls}>{t.settings.captureShortcut}</label>
-                <div className="flex gap-2">
-                  <input type="text" readOnly value={settings.shortcuts.capture}
-                    className={`flex-1 px-3 py-2 border rounded-lg text-sm bg-gray-50 focus:outline-none font-mono ${recording ? 'border-indigo-400 ring-2 ring-indigo-500/30' : 'border-gray-200'}`} />
-                  <button onClick={() => setRecording(true)}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                      recording ? 'bg-red-500 text-white animate-pulse shadow-md' : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                    }`}>
-                    {recording ? t.settings.recording : t.settings.recordBtn}
-                  </button>
-                </div>
-                <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">{t.settings.shortcutHint}</p>
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <label className={labelCls}>{t.settings.toolbarVisible}</label>
-                <p className="text-[11px] text-gray-400 mb-3">{t.settings.toolbarHint}</p>
-                <div className="space-y-2">
-                  {ALL_TOOLBAR.map(({ id, label }) => (
-                    <label key={id} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={settings.toolbarButtons.includes(id)}
-                        onChange={() => toggleToolbarBtn(id)}
-                        className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40" />
-                      <span className="text-sm text-gray-700">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {tab === 'ai' && (
-            <>
-              <div>
-                <label className={labelCls}>{t.settings.apiUrl}</label>
-                <input type="text" value={settings.ai.apiUrl}
-                  onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, apiUrl: e.target.value } }))}
-                  className={inputCls} placeholder={t.settings.apiUrlPh} />
-              </div>
-              <div>
-                <label className={labelCls}>{t.settings.apiKey}</label>
-                <input type="password" value={settings.ai.apiKey}
-                  onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, apiKey: e.target.value } }))}
-                  className={inputCls} placeholder={t.settings.apiKeyPh} />
-              </div>
-              <div>
-                <label className={labelCls}>{t.settings.model}</label>
-                <input type="text" value={settings.ai.model}
-                  onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, model: e.target.value } }))}
-                  className={inputCls} placeholder={t.settings.modelPh} />
-              </div>
-              <div>
-                <label className={labelCls}>{t.settings.prompt}</label>
-                <textarea value={settings.ai.prompt}
-                  onChange={e => onUpdate(p => ({ ...p, ai: { ...p.ai, prompt: e.target.value } }))}
-                  rows={3} className={`${inputCls} resize-none`} placeholder={t.settings.promptPh} />
-              </div>
-            </>
-          )}
-
-          {tab === 'aiButtons' && (
-            <>
-              {editingBtn ? (
-                <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    {editingBtn.id && settings.ai.aiButtons.find(b => b.id === editingBtn.id) ? t.settings.editAiButton : t.settings.addAiButton}
-                  </h3>
-                  <div className="grid grid-cols-[80px_1fr] gap-3 items-start">
-                    <div>
-                      <label className={labelCls}>{t.settings.btnIcon}</label>
-                      <input type="text" value={draftBtn.icon}
-                        onChange={e => setDraftBtn(p => ({ ...p, icon: e.target.value }))}
-                        className={`${inputCls} text-center text-lg`} maxLength={4} />
-                    </div>
-                    <div>
-                      <label className={labelCls}>{t.settings.btnLabel}</label>
-                      <input type="text" value={draftBtn.label}
-                        onChange={e => setDraftBtn(p => ({ ...p, label: e.target.value }))}
-                        className={inputCls} placeholder={t.settings.btnLabelPh} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>{t.settings.btnPrompt}</label>
-                    <textarea value={draftBtn.prompt}
-                      onChange={e => setDraftBtn(p => ({ ...p, prompt: e.target.value }))}
-                      rows={3} className={`${inputCls} resize-none`} placeholder={t.settings.btnPromptPh} />
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    {editingBtn.id && settings.ai.aiButtons.find(b => b.id === editingBtn.id) && (
-                      <button onClick={() => deleteAiButton(editingBtn.id)}
-                        className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                        {t.settings.delete}
-                      </button>
-                    )}
-                    <button onClick={() => setEditingBtn(null)}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                      {t.settings.cancel}
-                    </button>
-                    <button onClick={saveAiButton}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors">
-                      {t.settings.save}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={startNew}
-                  className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors">
-                  + {t.settings.addAiButton}
-                </button>
-              )}
-
-              <div className="space-y-2">
-                {settings.ai.aiButtons.length === 0 && !editingBtn && (
-                  <p className="text-center text-xs text-gray-300 py-4">{t.settings.noAiButtons}</p>
-                )}
-                {settings.ai.aiButtons.map(btn => (
-                  <div key={btn.id} onClick={() => startEdit(btn)}
-                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all">
-                    <span className="text-lg w-8 h-8 flex items-center justify-center bg-gray-50 rounded-lg">{btn.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-700">{btn.label}</div>
-                      <div className="text-xs text-gray-400 truncate">{btn.prompt}</div>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-        </div>
-
-        <div className="px-6 py-3 border-t border-gray-100 flex justify-end">
-          <button onClick={onClose}
-            className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm font-medium transition-colors shadow-sm">
-            {t.settings.done}
-          </button>
-        </div>
+        {content}
       </div>
     </div>
   );
