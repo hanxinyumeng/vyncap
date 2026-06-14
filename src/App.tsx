@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useScreenshot } from './hooks/useScreenshot';
 import { useAI } from './hooks/useAI';
 import { useShortcuts } from './hooks/useShortcuts';
@@ -73,10 +74,19 @@ export default function App() {
   const handleSave = async () => {
     const src = getCroppedImage();
     if (!src) return;
-    const link = document.createElement('a');
-    link.download = `screenshot-${Date.now()}.png`;
-    link.href = src;
-    link.click();
+    
+    try {
+      // Extract base64 data from data URL
+      const base64Data = src.split(',')[1];
+      const savedPath = await invoke<string>('save_screenshot', { base64Data });
+      console.log('截图已保存到:', savedPath);
+    } catch (error) {
+      console.error('保存失败:', error);
+      if (error !== '用户取消了保存') {
+        alert(`保存失败: ${error}`);
+      }
+    }
+    
     setSelectionComplete(false);
     await reset();
   };

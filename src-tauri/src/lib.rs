@@ -5,6 +5,8 @@ use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconEvent;
 use std::fs;
+use base64::{Engine as _, engine::general_purpose};
+use std::path::PathBuf;
 
 fn config_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
@@ -54,6 +56,7 @@ fn set_windowed(app: tauri::AppHandle) -> Result<(), String> {
 fn hide_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
         window.hide().map_err(|e| e.to_string())?;
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
     Ok(())
 }
@@ -67,6 +70,56 @@ fn show_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn save_screenshot(_app: tauri::AppHandle, base64_data: String) -> Result<String, String> {
+    let data = general_purpose::STANDARD.decode(&base64_data)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?;
+    
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let default_filename = format!("screenshot_{}.png", timestamp);
+    
+    let ps_script = format!(r#"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.SaveFileDialog
+$dialog.Filter = "PNG 图片|*.png|所有文件|*.*"
+$dialog.Title = "保存截图"
+$dialog.FileName = "{}"
+$dialog.DefaultExt = "png"
+$result = $dialog.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
+    $dialog.FileName
+}} else {{
+    "CANCEL"
+}}
+"#, default_filename);
+    
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
+        .output()
+        .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("PowerShell error: {}", stderr));
+    }
+    
+    let path_str = String::from_utf8(output.stdout)
+        .map_err(|e| format!("Invalid UTF-8 output: {}", e))?
+        .trim()
+        .to_string();
+    
+    if path_str == "CANCEL" || path_str.is_empty() {
+        return Err("用户取消了保存".to_string());
+    }
+    
+    let save_path = PathBuf::from(&path_str);
+    
+    fs::write(&save_path, &data)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+    
+    Ok(save_path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -77,6 +130,7 @@ pub fn run() {
             set_windowed,
             hide_window,
             show_window,
+            save_screenshot,
             ai::fetch_ai,
             read_config,
             write_config
