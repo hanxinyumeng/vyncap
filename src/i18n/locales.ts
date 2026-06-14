@@ -35,7 +35,7 @@ export const zh = {
     delete: '删除', save: '保存', cancel: '取消',
     done: '完成',
     toolbarVisible: '显示的按钮',
-    toolbarHint: '勾选要在截图工具栏中显示的按钮',
+    toolbarHint: '拖拽排序，勾选显示',
     noAiButtons: '暂无自定义 AI 按钮，点击上方添加',
   },
 } as const;
@@ -77,7 +77,7 @@ export const en = {
     delete: 'Delete', save: 'Save', cancel: 'Cancel',
     done: 'Done',
     toolbarVisible: 'Visible Buttons',
-    toolbarHint: 'Select buttons to show in the screenshot toolbar',
+    toolbarHint: 'Drag to reorder, toggle visibility',
     noAiButtons: 'No custom AI buttons yet, click above to add one',
   },
 } as const;

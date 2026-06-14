@@ -3,6 +3,53 @@ import { AppSettings, AIButton, ToolbarActionId } from '../types';
 import { useI18n } from '../i18n/context';
 import type { Lang } from '../i18n/locales';
 
+interface ToolbarSorterProps {
+  items: { id: ToolbarActionId; label: string }[];
+  order: ToolbarActionId[];
+  visible: ToolbarActionId[];
+  onToggle: (id: ToolbarActionId) => void;
+  onReorder: (from: number, to: number) => void;
+}
+
+function ToolbarSorter({ items, order, visible, onToggle, onReorder }: ToolbarSorterProps) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const labelMap = Object.fromEntries(items.map(i => [i.id, i.label])) as Record<ToolbarActionId, string>;
+
+  return (
+    <div className="space-y-1">
+      {order.map((id, idx) => {
+        const isActive = visible.includes(id);
+        const isDragging = dragIdx === idx;
+        const isOver = overIdx === idx && dragIdx !== null && dragIdx !== idx;
+        return (
+          <div key={id}
+            draggable
+            onDragStart={() => setDragIdx(idx)}
+            onDragOver={e => { e.preventDefault(); setOverIdx(idx); }}
+            onDragLeave={() => setOverIdx(null)}
+            onDrop={() => { if (dragIdx !== null) onReorder(dragIdx, idx); setDragIdx(null); setOverIdx(null); }}
+            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+            className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-grab active:cursor-grabbing select-none
+              ${isDragging ? 'opacity-40 border-indigo-300 bg-indigo-50' : 'border-gray-100 hover:bg-gray-50'}
+              ${isOver ? 'border-indigo-400 bg-indigo-50/50' : ''}
+            `}>
+            <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
+              <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
+              <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
+            </svg>
+            <input type="checkbox" checked={isActive}
+              onChange={() => onToggle(id)}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40 flex-shrink-0" />
+            <span className={`text-xs ${isActive ? 'text-gray-700' : 'text-gray-400'}`}>{labelMap[id]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface SettingsPanelProps {
   settings: AppSettings;
   onUpdate: (updater: (prev: AppSettings) => AppSettings) => void;
@@ -98,6 +145,15 @@ export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: S
     }));
   };
 
+  const reorderToolbar = (fromIdx: number, toIdx: number) => {
+    onUpdate(prev => {
+      const arr = [...prev.toolbarButtons];
+      const [item] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, item);
+      return { ...prev, toolbarButtons: arr };
+    });
+  };
+
   const ALL_TOOLBAR: { id: ToolbarActionId; label: string }[] = [
     { id: 'copy', label: t.toolbar.copy },
     { id: 'save', label: t.toolbar.save },
@@ -150,16 +206,13 @@ export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: S
             <div className="border-t border-gray-100 pt-3">
               <label className={labelCls}>{t.settings.toolbarVisible}</label>
               <p className="text-[10px] text-gray-400 mb-2">{t.settings.toolbarHint}</p>
-              <div className="space-y-1.5">
-                {ALL_TOOLBAR.map(({ id, label }) => (
-                  <label key={id} className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
-                    <input type="checkbox" checked={settings.toolbarButtons.includes(id)}
-                      onChange={() => toggleToolbarBtn(id)}
-                      className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40" />
-                    <span className="text-xs text-gray-600">{label}</span>
-                  </label>
-                ))}
-              </div>
+              <ToolbarSorter
+                items={ALL_TOOLBAR}
+                order={settings.toolbarButtons}
+                visible={settings.toolbarButtons}
+                onToggle={toggleToolbarBtn}
+                onReorder={reorderToolbar}
+              />
             </div>
           </>
         )}
