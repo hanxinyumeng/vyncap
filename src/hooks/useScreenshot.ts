@@ -17,8 +17,11 @@ export function useScreenshot() {
   const captureScreen = useCallback(async () => {
     try {
       const base64 = await invoke<string>('capture_screen');
-      await invoke('set_fullscreen');
+      // Set image first so canvas has content before going fullscreen
       setState(prev => ({ ...prev, image: base64, selection: null }));
+      // Wait one frame for React to render the canvas with the image
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await invoke('set_fullscreen');
       return base64;
     } catch (error) {
       console.error('Failed to capture screen:', error);

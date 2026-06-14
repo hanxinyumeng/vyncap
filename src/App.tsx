@@ -175,10 +175,10 @@ export default function App() {
         const toolH = showAnnotateTools ? 160 : 50;
         const belowOk = sel.y + sel.height + gap + toolH < window.innerHeight;
         const top = belowOk ? sel.y + sel.height + gap : sel.y - gap - toolH;
-        const toolbarW = 260;
-        const left = Math.max(0, Math.min(sel.x + sel.width - toolbarW, window.innerWidth - toolbarW));
+        // Right-align: toolbar right edge = selection right edge
+        const right = window.innerWidth - (sel.x + sel.width);
         return (
-          <div className="absolute z-50 flex flex-col gap-1.5 items-end" style={{ top, left }}>
+          <div className="absolute z-50 flex flex-col gap-1.5 items-end" style={{ top, right }}>
             <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} onAI={handleAI} aiLoading={aiLoading} />
             {showAnnotateTools && (
               <>
