@@ -37,8 +37,17 @@ export default function App() {
         if (state.image) { setSelectionComplete(false); reset(); }
       }
     };
+    const handleTriggerCapture = () => captureScreen();
+    const handleTriggerSettings = () => setShowSettings(true);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('trigger-capture', handleTriggerCapture);
+    window.addEventListener('trigger-settings', handleTriggerSettings);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('trigger-capture', handleTriggerCapture);
+      window.removeEventListener('trigger-settings', handleTriggerSettings);
+    };
   }, [captureScreen, setSelection, reset, state.image, showSettings, answer, aiError, clearAnswer, shortcuts, matchesShortcut]);
 
   const getCroppedImage = (): string | null => {
