@@ -130,6 +130,15 @@ export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: S
     setEditingBtn(null);
   };
 
+  const reorderAiButton = (fromIdx: number, toIdx: number) => {
+    onUpdate(prev => {
+      const arr = [...prev.ai.aiButtons];
+      const [item] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, item);
+      return { ...prev, ai: { ...prev.ai, aiButtons: arr } };
+    });
+  };
+
   const toggleToolbarBtn = (id: ToolbarActionId) => {
     onUpdate(prev => ({
       ...prev,
@@ -250,9 +259,15 @@ export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: S
                 <div className="grid grid-cols-[72px_1fr] gap-2.5 items-start">
                   <div>
                     <label className={labelCls}>{t.settings.btnIcon}</label>
-                    <input type="text" value={draftBtn.icon}
-                      onChange={e => setDraftBtn(p => ({ ...p, icon: e.target.value }))}
-                      className={`${inputCls} text-center text-base`} maxLength={4} />
+                    {draftBtn.iconType === 'image' ? (
+                      <div className="flex items-center gap-1">
+                        <img src={draftBtn.icon} className="w-8 h-8 object-contain" draggable={false} />
+                      </div>
+                    ) : (
+                      <input type="text" value={draftBtn.icon}
+                        onChange={e => setDraftBtn(p => ({ ...p, icon: e.target.value }))}
+                        className={`${inputCls} text-center text-base`} maxLength={4} />
+                    )}
                   </div>
                   <div>
                     <label className={labelCls}>{t.settings.btnLabel}</label>
@@ -291,23 +306,39 @@ export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: S
               </button>
             )}
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {settings.ai.aiButtons.length === 0 && !editingBtn && (
                 <p className="text-center text-[11px] text-gray-300 py-3">{t.settings.noAiButtons}</p>
               )}
-              {settings.ai.aiButtons.map(btn => (
-                <div key={btn.id} onClick={() => startEdit(btn)}
-                  className="flex items-center gap-2.5 p-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all">
-                  <span className="text-base w-7 h-7 flex items-center justify-center bg-gray-50 rounded-lg">{btn.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-700">{btn.label}</div>
-                    <div className="text-[10px] text-gray-400 truncate">{btn.prompt}</div>
+              {settings.ai.aiButtons.map((btn, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === settings.ai.aiButtons.length - 1;
+                return (
+                  <div key={btn.id} className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 transition-all">
+                    <div onClick={() => startEdit(btn)} className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                      {btn.iconType === 'image' ? (
+                        <img src={btn.icon} className="w-6 h-6 object-contain flex-shrink-0" draggable={false} />
+                      ) : (
+                        <span className="text-base w-6 h-6 flex items-center justify-center">{btn.icon}</span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-gray-700">{btn.label}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{btn.prompt}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5 flex-shrink-0">
+                      <button disabled={isFirst} onClick={() => reorderAiButton(idx, idx - 1)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default transition-colors">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 2L2 6h6L5 2z" /></svg>
+                      </button>
+                      <button disabled={isLast} onClick={() => reorderAiButton(idx, idx + 1)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default transition-colors">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 8L2 4h6L5 8z" /></svg>
+                      </button>
+                    </div>
                   </div>
-                  <svg className="w-3.5 h-3.5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

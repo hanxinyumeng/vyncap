@@ -70,6 +70,8 @@ export function ActionButtons({
             <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeDasharray="32" strokeDashoffset="8" />
             </svg>
+          ) : btn.iconType === 'image' ? (
+            <img src={btn.icon} className="w-4 h-4 object-contain" draggable={false} />
           ) : (
             <span className="text-sm">{btn.icon}</span>
           )}

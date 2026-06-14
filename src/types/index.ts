@@ -39,6 +39,7 @@ export interface AIButton {
   id: string;
   label: string;
   icon: string;
+  iconType?: 'emoji' | 'image';
   prompt: string;
 }
 
@@ -65,6 +66,8 @@ export interface AppSettings {
 
 export const DEFAULT_AI_BUTTONS: AIButton[] = [
   { id: 'default', label: '分析', icon: '🔍', prompt: '请分析截图内容，给出详细解答。' },
+  { id: 'solve', label: '解题', icon: '/icons/解题思路.png', iconType: 'image', prompt: '图片中是一道题目，请先给出这道题的答案，随后给出详细解答。' },
+  { id: 'ocr', label: 'OCR', icon: '/icons/filled_OCR.png', iconType: 'image', prompt: '请提取出图片中的文字。' },
 ];
 
 export const DEFAULT_TOOLBAR_BUTTONS: ToolbarActionId[] = ['copy', 'save', 'cancel', 'pin'];
