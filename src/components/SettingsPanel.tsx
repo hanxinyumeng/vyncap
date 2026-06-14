@@ -62,8 +62,9 @@ export function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProp
     setDraftBtn({ ...btn });
   };
   const startNew = () => {
-    setEditingBtn(null);
-    setDraftBtn({ id: Date.now().toString(), label: '', icon: '🧠', prompt: '' });
+    const btn: AIButton = { id: Date.now().toString(), label: '', icon: '🧠', prompt: '' };
+    setEditingBtn(btn);
+    setDraftBtn(btn);
   };
   const saveAiButton = () => {
     if (!draftBtn.label.trim()) return;
