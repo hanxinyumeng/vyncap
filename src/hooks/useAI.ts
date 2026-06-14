@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { AIConfig } from '../types';
 
 const STORAGE_KEY = 'ai-config';
@@ -54,24 +53,26 @@ export function useAI() {
         max_tokens: 2048,
       };
 
-      console.log('[AI] Sending request to:', config.apiUrl);
-      console.log('[AI] Model:', config.model);
-
-      const responseText = await invoke<string>('call_llm_api', {
-        apiUrl: config.apiUrl,
-        apiKey: config.apiKey,
-        body,
+      const resp = await fetch(config.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify(body),
       });
 
-      console.log('[AI] Raw response:', responseText.substring(0, 200));
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`API 错误 (${resp.status}): ${errText}`);
+      }
 
-      const data = JSON.parse(responseText);
+      const data = await resp.json();
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error('API 返回内容为空');
       setAnswer(content);
     } catch (e: any) {
-      console.error('[AI] Error:', e);
-      setError(e.message || e.toString() || '请求失败');
+      setError(e.message || '请求失败');
     } finally {
       setLoading(false);
     }

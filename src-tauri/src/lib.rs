@@ -1,7 +1,6 @@
 mod screenshot;
 
 use tauri::Manager;
-use serde_json::Value;
 
 #[tauri::command]
 fn set_fullscreen(app: tauri::AppHandle) -> Result<(), String> {
@@ -42,41 +41,6 @@ fn show_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-async fn call_llm_api(api_url: String, api_key: String, body: Value) -> Result<String, String> {
-    eprintln!("[AI] Calling API: {}", api_url);
-    eprintln!("[AI] Request body: {}", serde_json::to_string_pretty(&body).unwrap_or_default());
-
-    let client = reqwest::Client::new();
-    let resp = client
-        .post(&api_url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| {
-            eprintln!("[AI] Request failed: {}", e);
-            format!("请求失败: {}", e)
-        })?;
-
-    let status = resp.status();
-    eprintln!("[AI] Response status: {}", status);
-
-    let text = resp.text().await.map_err(|e| {
-        eprintln!("[AI] Failed to read response: {}", e);
-        format!("读取响应失败: {}", e)
-    })?;
-
-    eprintln!("[AI] Response body: {}", &text[..text.len().min(500)]);
-
-    if !status.is_success() {
-        return Err(format!("API 错误 ({}): {}", status, text));
-    }
-
-    Ok(text)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -86,8 +50,7 @@ pub fn run() {
             set_fullscreen,
             set_windowed,
             hide_window,
-            show_window,
-            call_llm_api
+            show_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
