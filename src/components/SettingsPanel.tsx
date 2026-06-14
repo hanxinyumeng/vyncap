@@ -12,37 +12,31 @@ interface ToolbarSorterProps {
 }
 
 function ToolbarSorter({ items, order, visible, onToggle, onReorder }: ToolbarSorterProps) {
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
-  const [overIdx, setOverIdx] = useState<number | null>(null);
   const labelMap = Object.fromEntries(items.map(i => [i.id, i.label])) as Record<ToolbarActionId, string>;
 
   return (
     <div className="space-y-1">
       {order.map((id, idx) => {
         const isActive = visible.includes(id);
-        const isDragging = dragIdx === idx;
-        const isOver = overIdx === idx && dragIdx !== null && dragIdx !== idx;
+        const isFirst = idx === 0;
+        const isLast = idx === order.length - 1;
         return (
           <div key={id}
-            draggable
-            onDragStart={() => setDragIdx(idx)}
-            onDragOver={e => { e.preventDefault(); setOverIdx(idx); }}
-            onDragLeave={() => setOverIdx(null)}
-            onDrop={() => { if (dragIdx !== null) onReorder(dragIdx, idx); setDragIdx(null); setOverIdx(null); }}
-            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-            className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-grab active:cursor-grabbing select-none
-              ${isDragging ? 'opacity-40 border-indigo-300 bg-indigo-50' : 'border-gray-100 hover:bg-gray-50'}
-              ${isOver ? 'border-indigo-400 bg-indigo-50/50' : ''}
-            `}>
-            <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
-              <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
-              <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
-            </svg>
+            className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
             <input type="checkbox" checked={isActive}
               onChange={() => onToggle(id)}
               className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/40 flex-shrink-0" />
-            <span className={`text-xs ${isActive ? 'text-gray-700' : 'text-gray-400'}`}>{labelMap[id]}</span>
+            <span className={`text-xs flex-1 ${isActive ? 'text-gray-700' : 'text-gray-400'}`}>{labelMap[id]}</span>
+            <div className="flex gap-0.5">
+              <button disabled={isFirst} onClick={() => onReorder(idx, idx - 1)}
+                className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default transition-colors">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 2L2 6h6L5 2z" /></svg>
+              </button>
+              <button disabled={isLast} onClick={() => onReorder(idx, idx + 1)}
+                className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default transition-colors">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 8L2 4h6L5 8z" /></svg>
+              </button>
+            </div>
           </div>
         );
       })}
