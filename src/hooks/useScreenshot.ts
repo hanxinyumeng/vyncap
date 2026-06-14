@@ -17,8 +17,8 @@ export function useScreenshot() {
   const captureScreen = useCallback(async () => {
     try {
       const base64 = await invoke<string>('capture_screen');
-      setState(prev => ({ ...prev, image: base64, selection: null }));
       await invoke('set_fullscreen');
+      setState(prev => ({ ...prev, image: base64, selection: null }));
       return base64;
     } catch (error) {
       console.error('Failed to capture screen:', error);

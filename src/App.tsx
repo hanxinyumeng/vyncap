@@ -20,6 +20,7 @@ interface PinnedImage {
 
 export default function App() {
   const [selectionComplete, setSelectionComplete] = useState(false);
+  const [showAnnotateTools, setShowAnnotateTools] = useState(false);
   const [pinnedImages, setPinnedImages] = useState<PinnedImage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const dragRef = useRef<{ id: number; offsetX: number; offsetY: number } | null>(null);
@@ -123,7 +124,7 @@ export default function App() {
   };
 
   const closePin = (id: number) => setPinnedImages(prev => prev.filter(p => p.id !== id));
-  const handleSelectionComplete = () => setSelectionComplete(true);
+  const handleSelectionComplete = () => { setSelectionComplete(true); setShowAnnotateTools(false); };
 
   // Home screen
   if (!state.image) {
@@ -171,16 +172,26 @@ export default function App() {
       {selectionComplete && state.selection && (() => {
         const sel = state.selection;
         const gap = 8;
-        const toolH = 160;
+        const toolH = showAnnotateTools ? 160 : 50;
         const belowOk = sel.y + sel.height + gap + toolH < window.innerHeight;
         const top = belowOk ? sel.y + sel.height + gap : sel.y - gap - toolH;
-        const left = Math.max(0, Math.min(sel.x + sel.width - 260, window.innerWidth - 260));
+        const toolbarW = 260;
+        const left = Math.max(0, Math.min(sel.x + sel.width - toolbarW, window.innerWidth - toolbarW));
         return (
           <div className="absolute z-50 flex flex-col gap-1.5 items-end" style={{ top, left }}>
             <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} onAI={handleAI} aiLoading={aiLoading} />
-            <Toolbar currentTool={state.currentTool} onToolChange={setCurrentTool} onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo} />
-            <ColorPicker currentColor={state.currentColor} onColorChange={setCurrentColor} />
-            <SizeSelector currentSize={state.currentSize} onSizeChange={setCurrentSize} />
+            {showAnnotateTools && (
+              <>
+                <Toolbar currentTool={state.currentTool} onToolChange={setCurrentTool} onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo} />
+                <ColorPicker currentColor={state.currentColor} onColorChange={setCurrentColor} />
+                <SizeSelector currentSize={state.currentSize} onSizeChange={setCurrentSize} />
+              </>
+            )}
+            {!showAnnotateTools && (
+              <button onClick={() => setShowAnnotateTools(true)} className="px-3 py-1.5 bg-gray-700/90 text-white text-xs rounded-lg hover:bg-gray-600/90 backdrop-blur-sm">
+                标注
+              </button>
+            )}
           </div>
         );
       })()}
