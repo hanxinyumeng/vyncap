@@ -16,11 +16,22 @@ export function useScreenshot() {
 
   const captureScreen = useCallback(async () => {
     try {
+      // 1. Hide window first so it's invisible during all transitions
+      await invoke('hide_window');
+      // 2. Capture desktop (window is hidden, won't appear in screenshot)
       const base64 = await invoke<string>('capture_screen');
+      // 3. Go fullscreen (invisible, no flash)
+      await invoke('set_fullscreen');
+      // 4. Set image
       setState(prev => ({ ...prev, image: base64, selection: null }));
+      // 5. Wait for React to render the canvas
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // 6. Show window (already fullscreen with image)
       await invoke('show_window');
       return base64;
     } catch (error) {
+      // If anything fails, make sure window is visible again
+      await invoke('show_window').catch(() => {});
       console.error('Failed to capture screen:', error);
       throw error;
     }
@@ -60,6 +71,8 @@ export function useScreenshot() {
       annotations: [],
     }));
     await invoke('hide_window');
+    await invoke('set_windowed');
+    await invoke('show_window');
   }, []);
 
   return {

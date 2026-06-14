@@ -13,12 +13,10 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "Screenshot Tool",
-        "fullscreen": true,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "skipTaskbar": true
+        "title": "AI 答题助手",
+        "width": 800,
+        "height": 600,
+        "center": true
       }
     ],
     "security": {
