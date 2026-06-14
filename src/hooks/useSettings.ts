@@ -1,13 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { AppSettings, DEFAULT_SETTINGS } from '../types';
+import { AppSettings, DEFAULT_SETTINGS, DEFAULT_AI_BUTTONS } from '../types';
 
 function migrateSettings(saved: any): AppSettings {
   const s = { ...DEFAULT_SETTINGS, ...saved };
   s.ai = { ...DEFAULT_SETTINGS.ai, ...s.ai };
   s.shortcuts = { ...DEFAULT_SETTINGS.shortcuts, ...s.shortcuts };
   if (!Array.isArray(s.toolbarButtons)) s.toolbarButtons = DEFAULT_SETTINGS.toolbarButtons;
-  if (!Array.isArray(s.ai.aiButtons)) s.ai.aiButtons = DEFAULT_SETTINGS.ai.aiButtons;
+  if (!Array.isArray(s.ai.aiButtons)) {
+    s.ai.aiButtons = DEFAULT_AI_BUTTONS;
+  } else {
+    const savedIds = new Set(s.ai.aiButtons.map((b: any) => b.id));
+    const newDefaults = DEFAULT_AI_BUTTONS.filter(b => !savedIds.has(b.id));
+    s.ai.aiButtons = [...s.ai.aiButtons, ...newDefaults];
+  }
   return s as AppSettings;
 }
 
