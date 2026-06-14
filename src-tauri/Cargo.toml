@@ -1,12 +1,12 @@
 [package]
-name = "screenshot-tool"
+name = "vyncap"
 version = "0.1.0"
-description = "A QQ-style screenshot tool"
+description = "Vyncap - AI screenshot tool"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "screenshot_tool_lib"
+name = "vyncap_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

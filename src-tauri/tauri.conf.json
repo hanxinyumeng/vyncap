@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegram/tauri/refs/heads/dev/crates/tauri-config-schema/schema.json",
-  "productName": "screenshot-tool",
+  "productName": "Vyncap",
   "version": "0.1.0",
-  "identifier": "com.snapshot-ai.screenshot-tool",
+  "identifier": "com.vyncap.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "AI 答题助手",
+        "title": "Vyncap",
         "width": 800,
         "height": 600,
         "center": true

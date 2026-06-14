@@ -64,7 +64,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_AI_BUTTONS: AIButton[] = [
-  { id: 'default', label: '答题', icon: '🧠', prompt: '请根据截图内容回答问题。如果截图中有题目，请给出详细解答。' },
+  { id: 'default', label: '分析', icon: '🔍', prompt: '请分析截图内容，给出详细解答。' },
 ];
 
 export const DEFAULT_TOOLBAR_BUTTONS: ToolbarActionId[] = ['copy', 'save', 'cancel', 'pin'];
@@ -75,7 +75,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     apiUrl: 'https://api.openai.com/v1',
     apiKey: '',
     model: 'gpt-4o',
-    prompt: '请根据截图内容回答问题。如果截图中有题目，请给出详细解答。',
+    prompt: '请分析截图内容，给出详细解答。',
     aiButtons: DEFAULT_AI_BUTTONS,
   },
   shortcuts: { capture: 'Ctrl+Alt+A' },

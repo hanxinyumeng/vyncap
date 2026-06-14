@@ -67,7 +67,7 @@ pub fn run() {
             let _tray = tauri::tray::TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                .tooltip("AI 答题助手")
+                .tooltip("Vyncap")
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "show" => {

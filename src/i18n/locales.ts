@@ -1,5 +1,5 @@
 export const zh = {
-  app: { title: 'AI 答题助手', subtitle: '截图 → 选区 → AI 解答' },
+  app: { title: 'Vyncap', subtitle: '截图 → AI 分析' },
   home: {
     capture: '开始截图',
     settings: '设置',
@@ -7,7 +7,7 @@ export const zh = {
     apiKeyWarning: '请先在设置中配置 API Key',
   },
   toolbar: {
-    copy: '复制', save: '保存', cancel: '取消', pin: '钉图', ai: 'AI 答题',
+    copy: '复制', save: '保存', cancel: '取消', pin: '钉图',     ai: 'AI 分析',
     undo: '撤销', redo: '重做',
     rect: '矩形', arrow: '箭头', text: '文字', mosaic: '马赛克', highlight: '高亮',
   },
@@ -41,7 +41,7 @@ export const zh = {
 } as const;
 
 export const en = {
-  app: { title: 'AI Answer Assistant', subtitle: 'Capture → Select → AI Answer' },
+  app: { title: 'Vyncap', subtitle: 'Capture → AI Analyze' },
   home: {
     capture: 'Capture',
     settings: 'Settings',
