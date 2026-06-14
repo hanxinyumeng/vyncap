@@ -1,11 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useScreenshot } from './hooks/useScreenshot';
-import { useAnnotation } from './hooks/useAnnotation';
 import { useAI } from './hooks/useAI';
 import { ScreenshotCanvas } from './components/ScreenshotCanvas';
-import { Toolbar } from './components/Toolbar';
-import { ColorPicker } from './components/ColorPicker';
-import { SizeSelector } from './components/SizeSelector';
 import { ActionButtons } from './components/ActionButtons';
 import { SettingsPanel } from './components/SettingsPanel';
 
@@ -20,20 +16,13 @@ interface PinnedImage {
 
 export default function App() {
   const [selectionComplete, setSelectionComplete] = useState(false);
-  const [showAnnotateTools, setShowAnnotateTools] = useState(false);
   const [pinnedImages, setPinnedImages] = useState<PinnedImage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const dragRef = useRef<{ id: number; offsetX: number; offsetY: number } | null>(null);
 
   const {
-    state, captureScreen, setSelection, setCurrentTool,
-    setCurrentColor, setCurrentSize, copyToClipboard, reset,
+    state, captureScreen, setSelection, copyToClipboard, reset,
   } = useScreenshot();
-
-  const {
-    annotations, currentAnnotation, startAnnotation, updateAnnotation,
-    finishAnnotation, addTextAnnotation, undo, redo, canUndo, canRedo,
-  } = useAnnotation();
 
   const { config, setConfig, askAI, answer, loading: aiLoading, error: aiError, clearAnswer } = useAI();
 
@@ -45,12 +34,10 @@ export default function App() {
         if (answer || aiError) { clearAnswer(); return; }
         if (state.image) { setSelectionComplete(false); reset(); }
       }
-      if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
-      if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [captureScreen, setSelection, undo, redo, reset, state.image, showSettings, answer, aiError, clearAnswer]);
+  }, [captureScreen, setSelection, reset, state.image, showSettings, answer, aiError, clearAnswer]);
 
   const getCroppedImage = (): string | null => {
     const canvas = document.querySelector('canvas');
@@ -124,7 +111,7 @@ export default function App() {
   };
 
   const closePin = (id: number) => setPinnedImages(prev => prev.filter(p => p.id !== id));
-  const handleSelectionComplete = () => { setSelectionComplete(true); setShowAnnotateTools(false); };
+  const handleSelectionComplete = () => setSelectionComplete(true);
 
   // Home screen
   if (!state.image) {
@@ -141,9 +128,7 @@ export default function App() {
               AI 设置
             </button>
           </div>
-          {!config.apiKey && (
-            <p className="text-orange-500 text-sm mt-4">⚠ 请先点击「AI 设置」配置 API Key</p>
-          )}
+          {!config.apiKey && <p className="text-orange-500 text-sm mt-4">⚠ 请先点击「AI 设置」配置 API Key</p>}
         </div>
         {showSettings && <SettingsPanel config={config} onChange={setConfig} onClose={() => setShowSettings(false)} />}
         {pinnedImages.map(pin => (
@@ -161,50 +146,38 @@ export default function App() {
   return (
     <div className="fixed inset-0 overflow-hidden bg-transparent">
       <ScreenshotCanvas
-        image={state.image} selection={state.selection} annotations={annotations}
-        currentAnnotation={currentAnnotation} currentTool={state.currentTool}
-        currentColor={state.currentColor} currentSize={state.currentSize}
+        image={state.image} selection={state.selection}
         onSelectionChange={setSelection} onSelectionComplete={handleSelectionComplete}
-        onStartAnnotation={startAnnotation} onUpdateAnnotation={updateAnnotation}
-        onFinishAnnotation={finishAnnotation} onAddTextAnnotation={addTextAnnotation}
       />
 
       {selectionComplete && state.selection && (() => {
         const sel = state.selection;
         const gap = 8;
-        const toolH = showAnnotateTools ? 160 : 50;
-        const belowOk = sel.y + sel.height + gap + toolH < window.innerHeight;
-        const top = belowOk ? sel.y + sel.height + gap : sel.y - gap - toolH;
-        // Right-align: toolbar right edge = selection right edge
+        const belowOk = sel.y + sel.height + gap + 50 < window.innerHeight;
+        const top = belowOk ? sel.y + sel.height + gap : sel.y - gap - 50;
         const right = window.innerWidth - (sel.x + sel.width);
         return (
           <div className="absolute z-50 flex flex-col gap-1.5 items-end" style={{ top, right }}>
             <ActionButtons onCopy={handleCopy} onSave={handleSave} onCancel={handleCancel} onPin={handlePin} onAI={handleAI} aiLoading={aiLoading} />
-            {showAnnotateTools && (
-              <>
-                <Toolbar currentTool={state.currentTool} onToolChange={setCurrentTool} onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo} />
-                <ColorPicker currentColor={state.currentColor} onColorChange={setCurrentColor} />
-                <SizeSelector currentSize={state.currentSize} onSizeChange={setCurrentSize} />
-              </>
-            )}
-            {!showAnnotateTools && (
-              <button onClick={() => setShowAnnotateTools(true)} className="px-3 py-1.5 bg-gray-700/90 text-white text-xs rounded-lg hover:bg-gray-600/90 backdrop-blur-sm">
-                标注
-              </button>
-            )}
+            <button onClick={() => setShowSettings(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-gray-700 hover:bg-gray-200 shadow-lg transition-colors"
+              title="AI 设置">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
           </div>
         );
       })()}
 
-      {/* AI Answer panel */}
       {(answer || aiError || aiLoading) && selectionComplete && state.selection && (() => {
         const sel = state.selection;
         const top = sel.y + sel.height + 8;
-        const left = sel.x;
+        const right = window.innerWidth - (sel.x + sel.width);
         const width = Math.min(sel.width, window.innerWidth - sel.x - 16);
         return (
           <div className="absolute z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl border overflow-hidden"
-            style={{ top, left, width: Math.max(width, 300), maxHeight: 400 }}>
+            style={{ top, right, width: Math.max(width, 300), maxHeight: 400 }}>
             <div className="flex items-center justify-between px-4 py-2 bg-purple-50 border-b">
               <span className="text-sm font-semibold text-purple-700">AI 解答</span>
               <button onClick={clearAnswer} className="text-gray-400 hover:text-gray-600">×</button>
