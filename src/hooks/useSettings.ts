@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { AppSettings, DEFAULT_SETTINGS } from '../types';
-
-const STORAGE_KEY = 'app-settings';
 
 function migrateSettings(saved: any): AppSettings {
   const s = { ...DEFAULT_SETTINGS, ...saved };
@@ -13,18 +12,33 @@ function migrateSettings(saved: any): AppSettings {
 }
 
 export function useSettings() {
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return DEFAULT_SETTINGS;
-      return migrateSettings(JSON.parse(saved));
-    } catch {
-      return DEFAULT_SETTINGS;
-    }
-  });
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const loaded = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    if (loaded.current) return;
+    loaded.current = true;
+    (async () => {
+      try {
+        const data = await invoke<string>('read_config');
+        if (data && data.trim()) {
+          setSettings(migrateSettings(JSON.parse(data)));
+        }
+      } catch {
+        try {
+          const local = localStorage.getItem('app-settings');
+          if (local) setSettings(migrateSettings(JSON.parse(local)));
+        } catch {}
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded.current) return;
+    const json = JSON.stringify(settings, null, 2);
+    invoke('write_config', { data: json }).catch(() => {
+      localStorage.setItem('app-settings', json);
+    });
   }, [settings]);
 
   const updateSettings = useCallback((updater: (prev: AppSettings) => AppSettings) => {

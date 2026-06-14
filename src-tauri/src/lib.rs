@@ -4,6 +4,29 @@ mod ai;
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconEvent;
+use std::fs;
+
+fn config_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("settings.json"))
+}
+
+#[tauri::command]
+fn read_config(app: tauri::AppHandle) -> Result<String, String> {
+    let path = config_path(&app)?;
+    if path.exists() {
+        fs::read_to_string(&path).map_err(|e| e.to_string())
+    } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
+fn write_config(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    let path = config_path(&app)?;
+    fs::write(&path, &data).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 fn set_fullscreen(app: tauri::AppHandle) -> Result<(), String> {
@@ -54,7 +77,9 @@ pub fn run() {
             set_windowed,
             hide_window,
             show_window,
-            ai::fetch_ai
+            ai::fetch_ai,
+            read_config,
+            write_config
         ])
         .setup(|app| {
             let show_item = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;

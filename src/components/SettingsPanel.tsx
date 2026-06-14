@@ -29,11 +29,12 @@ export function SettingsPanel({ settings, onUpdate, onClose, mode = 'modal' }: S
       if (e.altKey) parts.push('Alt');
       if (e.shiftKey) parts.push('Shift');
       const key = e.key.toUpperCase();
-      if (!['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) {
+      const isModifier = ['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key);
+      if (!isModifier) {
         parts.push(key.length === 1 ? key : e.key);
       }
       const combo = parts.join('+');
-      if (combo && parts.length > 1) {
+      if (combo && !isModifier && parts.length >= 2) {
         onUpdate(prev => ({ ...prev, shortcuts: { ...prev.shortcuts, capture: combo } }));
         setRecording(false);
       }
