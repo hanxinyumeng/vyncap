@@ -14,8 +14,11 @@
     "windows": [
       {
         "title": "Screenshot Tool",
-        "width": 800,
-        "height": 600
+        "fullscreen": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
       }
     ],
     "security": {
