@@ -53,6 +53,11 @@ export function useAI() {
         max_tokens: 2048,
       };
 
+      console.log('[AI] Request URL:', config.apiUrl);
+      console.log('[AI] Model:', config.model);
+      console.log('[AI] API Key:', config.apiKey.substring(0, 8) + '...');
+      console.log('[AI] Body size:', JSON.stringify(body).length, 'bytes');
+
       const resp = await fetch(config.apiUrl, {
         method: 'POST',
         headers: {
@@ -62,17 +67,24 @@ export function useAI() {
         body: JSON.stringify(body),
       });
 
+      console.log('[AI] Response status:', resp.status, resp.statusText);
+
       if (!resp.ok) {
         const errText = await resp.text();
-        throw new Error(`API 错误 (${resp.status}): ${errText}`);
+        console.error('[AI] Error response:', errText);
+        throw new Error(`API 错误 (${resp.status}): ${errText.substring(0, 200)}`);
       }
 
       const data = await resp.json();
+      console.log('[AI] Response data:', JSON.stringify(data).substring(0, 300));
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error('API 返回内容为空');
       setAnswer(content);
     } catch (e: any) {
-      setError(e.message || '请求失败');
+      console.error('[AI] Exception:', e);
+      console.error('[AI] Exception name:', e.name);
+      console.error('[AI] Exception message:', e.message);
+      setError(`${e.name}: ${e.message}`);
     } finally {
       setLoading(false);
     }
